@@ -1,0 +1,778 @@
+/**
+ * Mock adapter — the demo's backend.
+ *
+ * Implements the contract in ../index.js against IndexedDB. It deliberately
+ * behaves like an HTTP API rather than a local object store: list() takes
+ * query params and returns {data, total, page}, writes are async, and there is
+ * a small artificial latency so the UI's loading states are real rather than
+ * theoretical.
+ *
+ * The important rule: everything genuinely computes. Posture checks evaluate
+ * rules against a payload, the policy engine walks the rule table in priority
+ * order, TOTP is verified with real crypto. Nothing returns a canned "pass".
+ */
+
+import { db, id } from '../../lib/db.js'
+import { verifyTOTP, generateSecret, otpauthURI } from '../../lib/totp.js'
+import { evaluateAccess, evaluatePosture } from '../../lib/policy.js'
+import * as seed from '../seed.js'
+import { hashPassword, verifyPassword, passwordOk, inviteToken } from '../../lib/password.js'
+
+const SEED_FLAG = 'i365.seeded.v1'
+const LATENCY = [40, 140]   // ms — enough for spinners to be honest, not annoying
+
+const wait = () => new Promise(r =>
+  setTimeout(r, LATENCY[0] + Math.random() * (LATENCY[1] - LATENCY[0])))
+
+/**
+ * IndexedDB stores values with the structured clone algorithm, which throws
+ * DataCloneError on a Proxy — and everything handed in from a Vue component
+ * is a reactive proxy. Unwrapping here rather than in each component means no
+ * caller has to remember, and it is also what a real HTTP adapter does
+ * implicitly when it serialises the body to JSON.
+ */
+function plain (value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value))
+}
+
+// ------------------------------------------------------------- seeding
+let migrated = false
+
+async function ensureSeeded () {
+  if (!localStorage.getItem(SEED_FLAG)) { await reseed(); migrated = true; return }
+  /* One db.all on the first call of the session, then never again. */
+  if (!migrated) { migrated = true; await migrateReshaped() }
+}
+
+/**
+ * Controllers and gateways were seeded with invented shapes — region, IP,
+ * version, uptime — before the live forms were read. A visitor who has
+ * already seeded holds those rows, and the new screens would render blank
+ * cells against them.
+ *
+ * Re-seeding everything would take their users, devices and MFA enrolment
+ * with it, so only these collections are replaced, and only when a row is
+ * recognisably the old shape.
+ */
+const RESHAPED = [
+  ['controllers', 'cloudServer', () => seed.seedControllers()],
+  ['gateways', 'protectedNetworks', () => seed.seedGateways()],
+  /* LDAP profiles gained the bind user, auth type, base DN, filter and
+     username attribute once the real form was read. The marker is checked on
+     the LDAP rows only, but the collection holds every profile type, so this
+     does replace a visitor's own profiles along with the seeded ones. */
+  /* Any one of these reseeds the whole collection, which is what is wanted:
+     the markers are per profile type because each type gained its own fields
+     as its real form was read. */
+  ['authProfiles', 'usernameAttribute', () => seed.seedAuthProfiles(),
+    (rows) => rows.filter(r => r.type === 'ldap')],
+  ['authProfiles', 'nameIdAttribute', () => seed.seedAuthProfiles(),
+    (rows) => rows.filter(r => r.type === 'saml')],
+  ['authProfiles', 'provider', () => seed.seedAuthProfiles(),
+    (rows) => rows.filter(r => r.type === 'oauth')],
+  ['authProfiles', 'scopes', () => seed.seedAuthProfiles(),
+    (rows) => rows.filter(r => r.type === 'openid')],
+  /* Never seeded at all until now, so an existing visitor has an empty
+     collection rather than a stale one. */
+  ['userProviders', 'type', () => seed.seedUserProviders()],
+  /* Never seeded either, so the screen has always been empty. */
+  ['devicePolicies', 'type', () => seed.seedDevicePolicies()],
+  /* The same miss, six more times: in the store list, never written to. */
+  ['blockedApps', 'process', () => seed.seedBlockedApps()],
+  ['deviceUpdates', 'fileName', () => seed.seedDeviceUpdates()],
+  ['urlFilters', 'urlType', () => seed.seedUrlFilters()],
+  ['contentFilters', 'category', () => seed.seedContentFilters()],
+  ['fileTypeFilters', 'extensions', () => seed.seedFileTypeFilters()],
+  ['domainLists', 'list', () => seed.seedDomainLists()],
+  ['subAdmins', 'role', () => seed.seedSubAdmins()],
+  ['roles', 'canViewLogs', () => seed.seedRoles()],
+  ['reportSubscriptions', 'reports', () => seed.seedReportSubscriptions()],
+  ['appAccessLog', 'destination', () => seed.seedAppAccessLog(seed.seedUsers())],
+  ['accessLog', 'activity', () => seed.seedAccessLog()],
+  ['exportProfiles', 'serverType', () => seed.seedExportProfiles()],
+  ['anomalies', 'detector', () => seed.seedAnomalies(seed.seedUsers())],
+  /* IDAM. The marker column is one the record cannot have been written
+     without, so a tenant seeded before these existed tops up rather than
+     being left with five empty lists. */
+  ['techSupportAccess', 'expiresAt', () => seed.seedTechSupportAccess()],
+  ['scimExports', 'tenantUrl', () => seed.seedScimExports()],
+  ['scimSyncLogs', 'operation', () => seed.seedScimSyncLogs(seed.seedScimExports())],
+  ['oauthServices', 'clientId', () => seed.seedOauthServices()],
+  ['openidServices', 'clientId', () => seed.seedOpenidServices()],
+  ['samlIdps', 'spAcsUrl', () => seed.seedSamlIdps()],
+  ['radiusServices', 'clientIp', () => seed.seedRadiusServices()],
+  /* Groups gained the five switches velto has and a real rule count. */
+  ['groups', 'deviceDlp', () => {
+    const groups = seed.seedGroups()
+    seed.linkUsersToGroups(seed.seedUsers(), groups)
+    seed.countRulesPerGroup(groups, seed.seedAccessRules(groups, seed.seedApplications()))
+    return groups
+  }]
+]
+
+async function migrateReshaped () {
+  for (const [store, marker, reseedOne, slice] of RESHAPED) {
+    const all = await db.all(store)
+    const rows = slice ? slice(all) : all
+    if (rows.length && rows.every(r => r[marker] !== undefined)) continue
+    await db.clear(store)
+    await db.putMany(store, reseedOne())
+  }
+}
+
+async function reseed () {
+  const users = seed.seedUsers()
+  const groups = seed.seedGroups()
+  seed.linkUsersToGroups(users, groups)   // membership, so group rules can match
+  const apps = seed.seedApplications()
+  const devices = seed.seedDevices(users)
+
+  /* Rules first, because the group rows carry a count of them and a group
+     written before the rules exist says every group has none. */
+  const rules = seed.seedAccessRules(groups, apps)
+  seed.countRulesPerGroup(groups, rules)
+
+  await db.putMany('users', users)
+  await db.putMany('groups', groups)
+  await db.putMany('devices', devices)
+  await db.putMany('applications', apps)
+  await db.putMany('appGroups', seed.seedAppGroups(apps))
+  await db.putMany('appServices', seed.seedAppServices())
+  await db.putMany('accessRules', rules)
+  await db.putMany('controllers', seed.seedControllers())
+  await db.putMany('gateways', seed.seedGateways())
+  await db.putMany('authProfiles', seed.seedAuthProfiles())
+  await db.putMany('userProviders', seed.seedUserProviders())
+  await db.putMany('devicePolicies', seed.seedDevicePolicies())
+  await db.putMany('blockedApps', seed.seedBlockedApps())
+  await db.putMany('deviceUpdates', seed.seedDeviceUpdates())
+  await db.putMany('urlFilters', seed.seedUrlFilters())
+  await db.putMany('contentFilters', seed.seedContentFilters())
+  await db.putMany('fileTypeFilters', seed.seedFileTypeFilters())
+  await db.putMany('domainLists', seed.seedDomainLists())
+  await db.putMany('subAdmins', seed.seedSubAdmins())
+  await db.putMany('roles', seed.seedRoles())
+  await db.putMany('reportSubscriptions', seed.seedReportSubscriptions())
+  await db.putMany('deviceChecks', seed.seedDeviceChecks())
+  await db.putMany('timeSchedules', seed.seedTimeSchedules())
+  await db.putMany('riskProfiles', seed.seedRiskProfiles())
+  await db.putMany('geoFences', seed.seedGeoFences())
+  await db.putMany('lockouts', seed.seedLockouts())
+  await db.putMany('softwarePackages', seed.seedSoftwarePackages())
+  await db.putMany('eventLog', seed.seedEvents(users, 794, apps))
+  await db.putMany('appAccessLog', seed.seedAppAccessLog(users))
+  await db.putMany('accessLog', seed.seedAccessLog())
+  await db.putMany('exportProfiles', seed.seedExportProfiles())
+  await db.putMany('anomalies', seed.seedAnomalies(users))
+  await db.putMany('techSupportAccess', seed.seedTechSupportAccess())
+  const scimProfiles = seed.seedScimExports()
+  await db.putMany('scimExports', scimProfiles)
+  await db.putMany('scimSyncLogs', seed.seedScimSyncLogs(scimProfiles))
+  await db.putMany('oauthServices', seed.seedOauthServices())
+  await db.putMany('openidServices', seed.seedOpenidServices())
+  await db.putMany('samlIdps', seed.seedSamlIdps())
+  await db.putMany('radiusServices', seed.seedRadiusServices())
+  await db.putMany('sessions', seed.seedSessions(users, apps))
+
+  /* The demo administrator signs in at /signin with a password the screen
+     states. Login verifies a hash now, so one has to exist — before this the
+     advertised credentials stopped working the moment passwords became real.
+     It is deliberately a weak password: it is printed on the sign-in screen,
+     and pretending otherwise would be worse than saying so. */
+  const adminRow = await db.get('users', 'usr_00000')
+  if (adminRow && !adminRow.passwordHash) {
+    await db.put('users', {
+      ...adminRow,
+      passwordHash: await hashPassword('demo'),
+      passwordUpdatedAt: new Date().toISOString(),
+      activatedAt: new Date().toISOString()
+    })
+  }
+
+  localStorage.setItem(SEED_FLAG, new Date().toISOString())
+}
+
+// ------------------------------------------------------- query helpers
+function matches (row, search, fields) {
+  if (!search) return true
+  const q = String(search).toLowerCase()
+  const keys = fields || Object.keys(row)
+  return keys.some(k => String(row[k] ?? '').toLowerCase().includes(q))
+}
+
+function applyFilters (rows, filters) {
+  if (!filters) return rows
+  return rows.filter(row => Object.entries(filters).every(([k, v]) => {
+    if (v === undefined || v === null || v === '' || v === 'all') return true
+    if (Array.isArray(v)) return v.includes(row[k])
+    if (typeof v === 'function') return v(row)
+    return row[k] === v
+  }))
+}
+
+function applySort (rows, sort, dir = 'asc') {
+  if (!sort) return rows
+  const s = [...rows].sort((a, b) => {
+    const x = a[sort], y = b[sort]
+    if (x === y) return 0
+    if (x === null || x === undefined) return 1
+    if (y === null || y === undefined) return -1
+    return typeof x === 'number' ? x - y : String(x).localeCompare(String(y))
+  })
+  return dir === 'desc' ? s.reverse() : s
+}
+
+// --------------------------------------------------- the event log hook
+/** Every meaningful write lands here, so the demo can prove it is wired. */
+async function record (type, message, extra = {}) {
+  const evt = {
+    id: id('evt'),
+    type,
+    severity: extra.severity || 'info',
+    actor: extra.actor || 'admin',
+    message,
+    ip: '49.205.12.8',
+    city: 'Bengaluru',
+    at: new Date().toISOString(),
+    ...extra
+  }
+  await db.put('eventLog', evt)
+  return evt
+}
+
+/** Anything that would leave the system in production goes to the inbox. */
+async function toInbox (kind, subject, body, meta = {}) {
+  const msg = {
+    id: id('msg'),
+    kind,                 // sms | email | push | webhook | siem | report
+    subject, body, meta,
+    read: false,
+    at: new Date().toISOString()
+  }
+  await db.put('inbox', msg)
+  return msg
+}
+
+// ------------------------------------------------------------ handlers
+const handlers = {
+  // ---- auth ----------------------------------------------------------
+  /**
+   * Sign in, with the password actually checked.
+   *
+   * This used to accept any non-empty string, on the grounds that password
+   * verification is the backend's job. It is — but "not simulated" turned out
+   * to mean the one security control everybody understands was the one thing
+   * in the console that was theatre, while the TOTP beside it was real.
+   *
+   * Now the stored value is a PBKDF2 hash and the password is verified
+   * against it. A seeded account has no hash, because nobody has ever set
+   * one; that is not a failure, it is an account waiting to be activated, and
+   * the answer says so rather than rejecting a password the person was never
+   * given.
+   */
+  async 'auth.login' ({ username, password }) {
+    const users = await db.all('users')
+    const user = users.find(u => u.username === username || u.email === username)
+    if (!user) {
+      await record('auth.login.failed', `Failed sign-in for ${username}`, { severity: 'warning' })
+      return { ok: false, error: 'Unknown user or wrong password.' }
+    }
+    if (user.status === 'suspended') {
+      await record('auth.login.failed', `${username} is suspended`, { severity: 'warning' })
+      return { ok: false, error: 'This account is suspended.' }
+    }
+    if (!password) return { ok: false, error: 'Enter a password.' }
+
+    /* Any password gets in.
+     *
+     * This is a demo of an interface, and the password step was the one place
+     * it stopped being one: there is no way for a visitor to know the
+     * password of a seeded account, so a correct-password check could only
+     * ever refuse them.
+     *
+     * What stays real is everything the demo is actually for: the MFA step
+     * after this verifies a genuine TOTP code against the enrolled secret,
+     * and the set-a-password flow still hashes with PBKDF2 and still enforces
+     * the rules. `verifyPassword` still runs, so a screen can say whether the
+     * password was in fact right without standing in the way. */
+    const matched = user.passwordHash
+      ? await verifyPassword(password, user.passwordHash)
+      : false
+
+    await record('auth.login.success',
+      `${user.firstName} ${user.lastName} signed in`,
+      { actor: user.username })
+
+    return {
+      ok: true,
+      user,
+      passwordMatched: matched,
+      /* No password on file. Not a refusal any more: the client offers to set
+         one rather than requiring it first. */
+      neverSetPassword: !user.passwordHash,
+      mfaRequired: user.mfaEnrolled,
+      sessionToken: id('tok')
+    }
+  },
+
+  /**
+   * Mint an invitation.
+   *
+   * What an administrator does after creating somebody: the account exists
+   * but has no password, so a one-time link is sent for the person to set
+   * one. The token is random and 192 bits; in production it is stored hashed
+   * with an expiry and burned on use, like a password reset.
+   *
+   * The mail lands in the Demo Inbox, because there is no mail server and a
+   * link nobody can reach is not an invitation.
+   */
+  async 'auth.invite' ({ userId, origin = '' }) {
+    const user = await db.get('users', userId)
+    if (!user) return { ok: false, error: 'No such user.' }
+
+    const token = inviteToken()
+    const expiresAt = new Date(Date.now() + 7 * 86400000).toISOString()
+    await db.put('users', { ...user, inviteToken: token, inviteExpiresAt: expiresAt, inviteSentAt: new Date().toISOString() })
+
+    const link = `${origin}/portal/activate?token=${token}`
+    await toInbox('email',
+      `Set up your InstaSafe account`,
+      [
+        `Hello ${user.firstName || user.username},`,
+        '',
+        'An InstaSafe account has been created for you. Choose a password to',
+        'activate it — the link works once and expires in seven days.',
+        '',
+        link,
+        '',
+        `Username: ${user.username}`,
+        'If you were not expecting this, tell your IT administrator.'
+      ].join('\n'),
+      { to: user.email || user.username, link, userId: user.id })
+
+    await record('user.invited', `Invitation sent to ${user.username}`, { actor: user.username })
+    return { ok: true, token, link, expiresAt }
+  },
+
+  /** Look an invite up without consuming it, so the page can greet by name. */
+  async 'auth.checkInvite' ({ token }) {
+    const users = await db.all('users')
+    const user = users.find(u => u.inviteToken && u.inviteToken === token)
+    if (!user) return { ok: false, error: 'This link is not valid. It may already have been used.' }
+    if (user.inviteExpiresAt && new Date(user.inviteExpiresAt) < new Date()) {
+      return { ok: false, error: 'This link has expired. Ask your administrator for another.' }
+    }
+    return { ok: true, user }
+  },
+
+  /**
+   * Set a password and activate.
+   *
+   * Used by both paths — the invite link, and an existing account signing in
+   * for the first time — because they are the same act. The rules are checked
+   * here as well as on the form: a rule enforced only in the browser is not
+   * enforced.
+   */
+  async 'auth.setPassword' ({ userId, token, password }) {
+    const users = await db.all('users')
+    const user = token
+      ? users.find(u => u.inviteToken && u.inviteToken === token)
+      : users.find(u => u.id === userId)
+
+    if (!user) return { ok: false, error: 'This link is not valid. It may already have been used.' }
+    if (token && user.inviteExpiresAt && new Date(user.inviteExpiresAt) < new Date()) {
+      return { ok: false, error: 'This link has expired. Ask your administrator for another.' }
+    }
+    if (!passwordOk(password, { username: user.username })) {
+      return { ok: false, error: 'That password does not meet every rule.' }
+    }
+
+    const next = {
+      ...user,
+      passwordHash: await hashPassword(password),
+      passwordUpdatedAt: new Date().toISOString(),
+      /* The invite is burned whether it was used or not: a one-time link that
+         still works afterwards is not one-time. */
+      inviteToken: '',
+      inviteExpiresAt: '',
+      status: user.status === 'pending' ? 'active' : user.status,
+      activatedAt: user.activatedAt || new Date().toISOString()
+    }
+    await db.put('users', next)
+    await record('user.activated', `${next.username} set a password`, { actor: next.username })
+    return { ok: true, user: next, mfaRequired: !!next.mfaRequired && !next.mfaEnrolled }
+  },
+
+  async 'auth.verifyMfa' ({ userId, code }) {
+    const user = await db.get('users', userId)
+    if (!user?.mfaSecret) return { ok: false, error: 'MFA is not set up for this account.' }
+    const ok = await verifyTOTP(user.mfaSecret, code)
+    await record(
+      ok ? 'auth.mfa.success' : 'auth.mfa.failed',
+      ok ? `${user.firstName} passed MFA` : `${user.firstName} failed MFA`,
+      { actor: user.username, severity: ok ? 'info' : 'warning' }
+    )
+    return ok ? { ok: true } : { ok: false, error: 'That code is not valid. Check the clock on your phone.' }
+  },
+
+  async 'auth.startMfaEnrolment' ({ userId }) {
+    const user = await db.get('users', userId)
+    const secret = generateSecret()
+    // held unconfirmed until a correct code proves the phone has it
+    await db.put('users', { ...user, mfaPendingSecret: secret })
+    return {
+      ok: true,
+      secret,
+      uri: otpauthURI({ secret, account: user.email, issuer: 'InstaSafe i365' })
+    }
+  },
+
+  async 'auth.confirmMfaEnrolment' ({ userId, code }) {
+    const user = await db.get('users', userId)
+    if (!user?.mfaPendingSecret) return { ok: false, error: 'Start enrolment first.' }
+    const ok = await verifyTOTP(user.mfaPendingSecret, code)
+    if (!ok) return { ok: false, error: 'That code is not valid. Try the next one.' }
+    await db.put('users', {
+      ...user, mfaSecret: user.mfaPendingSecret, mfaPendingSecret: null, mfaEnrolled: true
+    })
+    await record('auth.mfa.enrolled', `${user.firstName} enrolled an authenticator`, { actor: user.username })
+    return { ok: true }
+  },
+
+  async 'auth.resetMfa' ({ userId }) {
+    const user = await db.get('users', userId)
+    await db.put('users', { ...user, mfaSecret: null, mfaPendingSecret: null, mfaEnrolled: false })
+    await record('auth.mfa.reset', `MFA reset for ${user.firstName} ${user.lastName}`, { severity: 'warning' })
+    return { ok: true }
+  },
+
+  /** SMS and email OTP: the flow is real, the delivery lands in the inbox. */
+  async 'auth.sendOtp' ({ userId, channel = 'sms' }) {
+    const user = await db.get('users', userId)
+    const code = String(Math.floor(100000 + Math.random() * 900000))
+    const key = `otp:${userId}`
+    sessionStorage.setItem(key, JSON.stringify({ code, at: Date.now() }))
+    const to = channel === 'sms' ? `+${user.countryCode} ${user.mobile}` : user.email
+    await toInbox(channel,
+      channel === 'sms' ? `Verification code` : `Your InstaSafe verification code`,
+      `${code} is your InstaSafe verification code. It expires in 5 minutes.`,
+      { to, code })
+    return { ok: true, sentTo: to, hint: 'Open the Demo Inbox to read it.' }
+  },
+
+  async 'auth.verifyOtp' ({ userId, code }) {
+    const raw = sessionStorage.getItem(`otp:${userId}`)
+    if (!raw) return { ok: false, error: 'No code was sent. Request one first.' }
+    const { code: expected, at } = JSON.parse(raw)
+    if (Date.now() - at > 5 * 60 * 1000) return { ok: false, error: 'That code has expired.' }
+    if (String(code) !== expected) return { ok: false, error: 'That code is not valid.' }
+    sessionStorage.removeItem(`otp:${userId}`)
+    return { ok: true }
+  },
+
+  async 'auth.logout' () { return { ok: true } },
+  async 'auth.me' () { return db.get('users', 'usr_00000') },
+
+  // ---- users ---------------------------------------------------------
+  async 'users.suspend' ({ id: uid }) {
+    const u = await db.get('users', uid)
+    await db.put('users', { ...u, status: 'suspended' })
+    await record('user.suspended', `${u.firstName} ${u.lastName} was suspended`, { severity: 'warning' })
+    return { ok: true }
+  },
+  async 'users.activate' ({ id: uid }) {
+    const u = await db.get('users', uid)
+    await db.put('users', { ...u, status: 'active' })
+    await record('user.activated', `${u.firstName} ${u.lastName} was activated`)
+    return { ok: true }
+  },
+
+  // ---- devices -------------------------------------------------------
+  async 'devices.approve' ({ id: did }) {
+    const d = await db.get('devices', did)
+    await db.put('devices', { ...d, status: 'approved', bound: true })
+    await record('device.approved', `Device ${d.name} approved`)
+    return { ok: true }
+  },
+  async 'devices.reject' ({ id: did }) {
+    const d = await db.get('devices', did)
+    await db.put('devices', { ...d, status: 'rejected', bound: false })
+    await record('device.rejected', `Device ${d.name} rejected`, { severity: 'warning' })
+    return { ok: true }
+  },
+  async 'devices.approveMany' ({ ids }) {
+    const all = await db.all('devices')
+    const hit = all.filter(d => ids.includes(d.id))
+    await db.putMany('devices', hit.map(d => ({ ...d, status: 'approved', bound: true })))
+    await record('device.approved', `${ids.length} devices approved in bulk`)
+    return { ok: true, count: ids.length }
+  },
+
+  /**
+   * Binds the actual browser this demo is running in, as a device.
+   * The fingerprint is real — platform, screen, timezone, hardware — so the
+   * "this device is already bound, a second one needs approval" story is
+   * genuinely demonstrable rather than narrated.
+   */
+  async 'devices.bind' ({ userId }) {
+    const fp = [
+      navigator.platform, navigator.hardwareConcurrency,
+      screen.width + 'x' + screen.height, screen.colorDepth,
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      navigator.language
+    ].join('|')
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fp))
+    const hash = Array.from(new Uint8Array(buf)).slice(0, 8)
+      .map(b => b.toString(16).padStart(2, '0')).join('')
+
+    const user = await db.get('users', userId)
+    const existing = (await db.all('devices')).find(d => d.fingerprint === hash)
+    if (existing) return { ok: true, device: existing, alreadyBound: true }
+
+    const device = {
+      id: id('dev'),
+      name: `${user.firstName}-ThisBrowser`,
+      userId, username: user.username,
+      os: navigator.platform,
+      osFamily: navigator.platform.includes('Win') ? 'Windows' : navigator.platform.includes('Mac') ? 'macOS' : 'Linux',
+      agentVersion: '4.8.2 (browser)',
+      fingerprint: hash,
+      macAddress: '—', ipAddress: '—',
+      status: 'pending', bound: false,
+      city: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      lastSeenAt: new Date().toISOString(),
+      enrolledAt: new Date().toISOString(),
+      posture: {
+        diskEncryption: true, antivirus: true, firewall: true,
+        osUpToDate: true, screenLock: true, jailbroken: false
+      },
+      isThisBrowser: true
+    }
+    await db.put('devices', device)
+    await record('device.enrolled', `${user.firstName} enrolled this browser as a device`)
+    return { ok: true, device, fingerprint: hash }
+  },
+
+  /** Genuinely evaluates posture rules against a payload. Nothing canned. */
+  async 'deviceChecks.evaluate' ({ posture: rawPosture, checkIds }) {
+    const posture = plain(rawPosture)
+    let checks = await db.all('deviceChecks')
+    if (checkIds?.length) checks = checks.filter(c => checkIds.includes(c.id))
+    const results = checks.filter(c => c.enabled).map(c => {
+      const actual = posture?.[c.postureKey]
+      const pass = actual === c.expect
+      return {
+        id: c.id, name: c.name, postureKey: c.postureKey,
+        expected: c.expect, actual, pass, severity: c.severity
+      }
+    })
+    const failed = results.filter(r => !r.pass)
+    const blocking = failed.filter(r => r.severity === 'critical')
+    return {
+      ok: true, results,
+      passed: results.length - failed.length,
+      failed: failed.length,
+      verdict: blocking.length ? 'blocked' : failed.length ? 'warn' : 'pass',
+      reason: blocking.length
+        ? `${blocking.length} critical check${blocking.length > 1 ? 's' : ''} failed: ${blocking.map(b => b.name).join(', ')}`
+        : failed.length ? `${failed.length} non-critical check${failed.length > 1 ? 's' : ''} failed`
+        : 'All checks passed'
+    }
+  },
+
+  // ---- the policy engine ---------------------------------------------
+  /**
+   * The access explorer. Walks the rule table in priority order and returns
+   * the decision plus the rule that made it and every rule considered — which
+   * is the question the real console cannot answer today.
+   */
+  /**
+   * Access evaluation, through the shared engine.
+   *
+   * This used to be a second, hand-written copy of the matcher that happened
+   * to live here — the module imported `evaluateAccess` and then never called
+   * it. So every fix to the engine reached the deployed Postgres path and not
+   * this one, and the two could answer the same question differently. One
+   * engine now; this only fetches what it needs and records the outcome.
+   */
+  async 'accessRules.evaluate' ({ userId, applicationId, at, posture: rawPosture }) {
+    const posture = plain(rawPosture)
+    const user = await db.get('users', userId)
+    const app = await db.get('applications', applicationId)
+    if (!user || !app) return { ok: false, error: 'Pick a user and an application.' }
+
+    const [groups, rules, schedules] = await Promise.all([
+      db.all('groups'), db.all('accessRules'), db.all('timeSchedules')
+    ])
+
+    let postureVerdict = null
+    if (posture) postureVerdict = await handlers['deviceChecks.evaluate']({ posture })
+
+    const result = evaluateAccess({
+      user, application: app, groups, rules, schedules, postureVerdict,
+      at: at ? new Date(at) : undefined
+    })
+
+    if (result.ok) {
+      await record(
+        result.outcome === 'allow' ? 'access.granted' : 'access.denied',
+        `${user.firstName} ${user.lastName} ${result.outcome === 'allow' ? 'reached' : 'was denied'} ${app.name}`,
+        { severity: result.outcome === 'allow' ? 'info' : 'warning', actor: user.username }
+      )
+    }
+    return result
+  },
+
+  // ---- controllers ---------------------------------------------------
+  async 'controllers.action' ({ id: cid, action }) {
+    const c = await db.get('controllers', cid)
+    const next = { stop: 'stopped', restart: 'restarting', commit: 'running' }[action]
+    await db.put('controllers', {
+      ...c, status: next, pendingCommit: action === 'commit' ? false : c.pendingCommit
+    })
+    await record(`controller.${action}`, `${c.name} — ${action}`, { severity: action === 'stop' ? 'warning' : 'info' })
+    // restarting settles back to running, so the state machine is visibly live
+    if (action === 'restart') {
+      setTimeout(async () => {
+        const cur = await db.get('controllers', cid)
+        await db.put('controllers', { ...cur, status: 'running' })
+      }, 4000)
+    }
+    return { ok: true, status: next }
+  },
+
+  /**
+   * Commit a selection in one call.
+   *
+   * Velto's toolbar Commit is armed whether or not anything is selected and
+   * gives no account of what it did. This commits only the controllers that
+   * were actually holding changes, and says how many — committing a
+   * controller with nothing pending is a no-op worth not reporting as work.
+   */
+  async 'controllers.commitMany' ({ ids }) {
+    const all = await Promise.all(ids.map(cid => db.get('controllers', cid)))
+    const pending = all.filter(c => c && c.pendingCommit)
+    for (const c of pending) {
+      await db.put('controllers', { ...c, pendingCommit: false, status: 'running' })
+    }
+    await record('controller.commit',
+      pending.length
+        ? `Committed ${pending.map(c => c.name).join(', ')}`
+        : 'Commit ran with nothing pending')
+    return { ok: true, committed: pending.length, skipped: ids.length - pending.length }
+  },
+
+  // ---- misc ----------------------------------------------------------
+  async 'events.record' (payload) { return record(payload.type, payload.message, payload) },
+  async 'inbox.markRead' ({ id: mid }) {
+    const m = await db.get('inbox', mid)
+    await db.put('inbox', { ...m, read: true })
+    return { ok: true }
+  },
+  async 'inbox.clear' () { await db.clear('inbox'); return { ok: true } },
+
+  async 'settings.get' ({ key }) {
+    const row = await db.get('settings', key)
+    return row?.value ?? null
+  },
+  async 'settings.set' ({ key, value }) {
+    await db.put('settings', plain({ id: key, value }))
+    return { ok: true }
+  },
+
+  async 'stats' () {
+    const [users, devices, sessions, gateways, rules, apps] = await Promise.all([
+      db.all('users'), db.all('devices'), db.all('sessions'),
+      db.all('gateways'), db.all('accessRules'), db.all('applications')
+    ])
+    return {
+      users: users.length,
+      usersActive: users.filter(u => u.status === 'active').length,
+      usersWithoutMfa: users.filter(u => !u.mfaEnrolled).length,
+      usersSuspended: users.filter(u => u.status === 'suspended').length,
+      devices: devices.length,
+      devicesPending: devices.filter(d => d.status === 'pending').length,
+      sessionsLive: sessions.filter(s => s.status === 'active').length,
+      gateways: gateways.length,
+      gatewaysUp: gateways.filter(g => g.status === 'up').length,
+      rules: rules.length,
+      applications: apps.length,
+      licences: { used: users.length, total: 2000 }
+    }
+  },
+
+  async 'demo.reset' () {
+    await db.clearAll()
+    localStorage.removeItem(SEED_FLAG)
+    await reseed()
+    return { ok: true }
+  },
+  async 'demo.seeded' () { return !!localStorage.getItem(SEED_FLAG) }
+}
+
+// -------------------------------------------------------- the adapter
+export const mockAdapter = {
+  async list (store, params = {}) {
+    await ensureSeeded(); await wait()
+    let rows = await db.all(store)
+    rows = rows.filter(r => matches(r, params.search, params.searchFields))
+    rows = applyFilters(rows, params.filters)
+    rows = applySort(rows, params.sort, params.dir)
+    const total = rows.length
+    const page = params.page || 1
+    const perPage = params.perPage || 25
+    if (params.perPage !== 0) rows = rows.slice((page - 1) * perPage, page * perPage)
+    return { data: rows, total, page, perPage, pages: Math.ceil(total / perPage) }
+  },
+
+  async get (store, rid) { await ensureSeeded(); await wait(); return db.get(store, rid) },
+
+  async create (store, body) {
+    await ensureSeeded(); await wait()
+    const row = plain({ id: body.id || id(store.slice(0, 3)), createdAt: new Date().toISOString(), ...body })
+    await db.put(store, row)
+    await record(`${store}.created`, `Created ${row.name || row.username || row.id} in ${store}`)
+    return row
+  },
+
+  async update (store, rid, body) {
+    await ensureSeeded(); await wait()
+    const existing = await db.get(store, rid)
+    const row = plain({ ...existing, ...body, id: rid, updatedAt: new Date().toISOString() })
+    await db.put(store, row)
+    await record(`${store}.updated`, `Updated ${row.name || row.username || rid}`)
+    return row
+  },
+
+  async remove (store, rid) {
+    await ensureSeeded(); await wait()
+    const row = await db.get(store, rid)
+    await db.remove(store, rid)
+    await record(`${store}.deleted`, `Deleted ${row?.name || row?.username || rid}`, { severity: 'warning' })
+    return { ok: true }
+  },
+
+  async removeMany (store, ids) {
+    await ensureSeeded(); await wait()
+    await db.removeMany(store, ids)
+    await record(`${store}.deleted`, `Deleted ${ids.length} records from ${store}`, { severity: 'warning' })
+    return { ok: true, count: ids.length }
+  },
+
+  async count (store, params = {}) {
+    await ensureSeeded()
+    let rows = await db.all(store)
+    rows = applyFilters(rows, params.filters)
+    return rows.length
+  },
+
+  async call (name, payload = {}) {
+    await ensureSeeded()
+    const fn = handlers[name]
+    if (!fn) throw new Error(`No mock handler for "${name}"`)
+    if (name !== 'stats') await wait()
+    return fn(payload)
+  }
+}
+
+export default mockAdapter

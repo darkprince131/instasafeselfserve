@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+.netlify/
+.DS_Store
+*.log
+
+# Live-tenant material. 20 DOM snapshots and screenshots of the real veno
+# console, kept locally so screens can be pixel-matched. Never committed:
+# this repo may be public and those pages show a production tenant.
+reference/

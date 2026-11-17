@@ -1,0 +1,622 @@
+/* ==============================================================
+   app.css — what the running app needs on top of i365.css
+   ==============================================================
+   i365.css is the design system and is shared with the static component
+   reference. This file holds only what a live Vue app adds: the icon font
+   sizing, loading skeletons, the Demo Inbox drawer, and a handful of
+   screen-specific pieces.
+   ============================================================== */
+
+/* Font Awesome is sized per slot rather than globally, because FA's own
+   defaults are tuned for 16px body text and this interface is 13px. */
+.i-navitem > i.fa-solid{ width:17px; font-size:13.5px; text-align:center; color:var(--i-rail-mute); flex:none; }
+.i-navitem[aria-current="page"] > i.fa-solid,
+.i-navitem.is-active > i.fa-solid{ color:var(--i-rail-active-ink); }
+.i-navitem .i-caret{ margin-left:auto; font-size:9px; }
+.i-navitem .i-count + .i-caret{ margin-left:8px; }
+.i-mark svg{ width:24px; height:24px; display:block; }
+
+/* a parent whose child is the current page, while collapsed */
+.i-navitem.is-parent-active{ color:var(--i-rail-ink); font-weight:500; }
+.i-navitem.is-parent-active > i.fa-solid{ color:var(--i-rail-active-ink); }
+
+.i-new{
+  font-size:9.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--i-v700); background:var(--i-v50); border-radius:99px; padding:2px 6px;
+}
+html[data-i-theme="dark"] .i-new,
+html[data-i-rail="dark"] .i-new{ color:#b7afff; background:rgba(114,101,224,.2); }
+
+.i-railfoot{ text-decoration:none; color:inherit; }
+.i-railfoot:hover{ background:var(--i-rail-hover); }
+
+/* ---------------- loading ---------------- */
+@keyframes i-pulse{ 0%,100%{opacity:1} 50%{opacity:.45} }
+.i-skel{
+  background:var(--i-rule); border-radius:4px; height:12px;
+  animation:i-pulse 1.4s ease-in-out infinite;
+}
+.i-skeleton-page{ height:260px; border-radius:8px; background:var(--i-tint); animation:i-pulse 1.4s ease-in-out infinite; }
+.i-table tbody tr.is-skel td{ height:52px; }
+.i-table tbody tr.is-skel .i-skel{ width:70%; }
+
+/* ---------------- toasts ---------------- */
+.i-toast{ animation:i-toast-in .18s cubic-bezier(.2,.7,.3,1); }
+@keyframes i-toast-in{ from{ transform:translateY(8px); opacity:0 } to{ transform:none; opacity:1 } }
+.i-toast .i-tx{ margin-left:auto; border:0; background:transparent; color:var(--i-mute); cursor:pointer; padding:0 2px; }
+
+/* ---------------- demo inbox ---------------- */
+/* Everything that would leave the system in production lands here. It is what
+   makes the simulated half of the demo honest: the flow runs for real right up
+   to the boundary, and you can see exactly what crossed it. */
+.i-inbox{
+  position:fixed; top:0; right:0; bottom:0; z-index:62;
+  width:min(440px,100vw); display:flex; flex-direction:column;
+  background:var(--i-canvas); box-shadow:var(--i-float-lg);
+}
+.i-inbox-msg{ padding:13px 20px; border-bottom:1px solid var(--i-rule); }
+.i-inbox-msg.is-unread{ background:var(--i-v50); }
+html[data-i-theme="dark"] .i-inbox-msg.is-unread{ background:rgba(114,101,224,.1); }
+.i-inbox-kind{
+  font-size:9.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--i-mute); border:1px solid var(--i-rule-strong); border-radius:99px; padding:1px 7px;
+}
+.i-inbox-body{ font-size:12.5px; color:var(--i-dim); margin:5px 0 0; }
+.i-inbox-code{
+  font-family:var(--i-mono); font-size:19px; letter-spacing:.14em;
+  color:var(--i-ink); display:inline-block; margin-top:7px;
+}
+
+/* ---------------- dashboard ---------------- */
+.i-ring{ transform:rotate(-90deg); }
+.i-ring circle{ fill:none; stroke-width:3; }
+.i-ring .i-ring-bg{ stroke:var(--i-rule); }
+.i-ring .i-ring-fg{ stroke:var(--i-v600); transition:stroke-dashoffset .3s; }
+
+/* ---------------- MFA ---------------- */
+.i-qr{ background:#fff; padding:14px; border-radius:var(--i-r-float); border:1px solid var(--i-rule-strong); display:inline-block; }
+.i-qr svg{ display:block; }
+.i-secret{
+  font-family:var(--i-mono); font-size:13px; letter-spacing:.08em;
+  background:var(--i-tint); border:1px solid var(--i-rule); border-radius:var(--i-r-ctl);
+  padding:9px 11px; word-break:break-all; color:var(--i-ink);
+}
+.i-otp{
+  font-family:var(--i-mono); font-size:25px; letter-spacing:.4em;
+  text-align:center; width:100%; max-width:230px; height:48px;
+  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-ctl);
+  background:var(--i-canvas); color:var(--i-ink); padding-left:.4em;
+}
+.i-otp:focus{ outline:none; border-color:var(--i-v600); box-shadow:0 0 0 3px var(--i-v50); }
+.i-step{ display:flex; gap:13px; padding:15px 0; border-bottom:1px solid var(--i-rule); }
+.i-step:last-child{ border-bottom:0; }
+.i-step-n{
+  width:23px; height:23px; flex:none; border-radius:99px; display:grid; place-items:center;
+  background:var(--i-tint); color:var(--i-dim); font-size:11.5px; font-weight:500;
+}
+.i-step.is-done .i-step-n{ background:var(--i-ok-bg); color:var(--i-ok); }
+.i-step.is-now .i-step-n{ background:var(--i-v600); color:#fff; }
+
+/* ---------------- verdict blocks ---------------- */
+/* Used by posture checks and the access explorer. The whole point of these
+   screens is the answer, so the answer gets the weight. */
+.i-verdict{ border-radius:var(--i-r-float); padding:17px 19px; border:1px solid var(--i-rule); }
+.i-verdict.is-pass{ background:var(--i-ok-bg); border-color:var(--i-ok-line); }
+.i-verdict.is-warn{ background:var(--i-c50); border-color:var(--i-c-line); }
+.i-verdict.is-block{ background:var(--i-bad-bg); border-color:transparent; }
+.i-verdict h3{ margin:0 0 3px; font-size:16px; font-weight:500; letter-spacing:-.014em; }
+.i-verdict p{ margin:0; font-size:12.5px; color:var(--i-dim); }
+.i-verdict.is-pass h3{ color:var(--i-ok); }
+.i-verdict.is-warn h3{ color:var(--i-c600); }
+.i-verdict.is-block h3{ color:var(--i-bad); }
+
+.i-checkrow{ display:flex; align-items:center; gap:11px; padding:9px 0; border-bottom:1px solid var(--i-rule); }
+.i-checkrow:last-child{ border-bottom:0; }
+.i-checkicon{ width:17px; text-align:center; flex:none; }
+
+/* a rule in the evaluation trace */
+.i-trace{ border-left:2px solid var(--i-rule); padding:7px 0 7px 13px; margin-left:3px; font-size:12.5px; }
+.i-trace.is-hit{ border-left-color:var(--i-v600); }
+.i-trace.is-shadowed{ opacity:.5; }
+.i-trace.is-shadowed .i-trace-name{ text-decoration:line-through; }
+
+/* ---------------- session surface ---------------- */
+/* The RDP / SSH launch target. Deliberately framed as a demo surface rather
+   than pretending to be a live desktop. */
+.i-session{
+  background:#0d0d11; border-radius:var(--i-r-float); overflow:hidden;
+  font-family:var(--i-mono); font-size:12.5px; color:#d6d6de; position:relative;
+}
+.i-session-bar{
+  display:flex; align-items:center; gap:9px; padding:8px 13px;
+  background:rgba(255,255,255,.05); font-family:var(--i-sans); font-size:12px; color:#9394a1;
+}
+.i-session-body{ padding:17px; min-height:290px; white-space:pre-wrap; line-height:1.65; }
+.i-session-wm{
+  position:absolute; inset:0; pointer-events:none; display:grid; place-items:center;
+  font-family:var(--i-sans); font-size:40px; font-weight:600; color:rgba(255,255,255,.055);
+  transform:rotate(-24deg); letter-spacing:.06em;
+}
+
+/* ---------------- misc ---------------- */
+.i-kv{ display:grid; grid-template-columns:180px 1fr; gap:9px 18px; font-size:12.5px; }
+.i-kv dt{ color:var(--i-mute); font-weight:400; }
+.i-kv dd{ margin:0; color:var(--i-ink); }
+.i-bar-mini{ height:5px; border-radius:99px; background:var(--i-rule); overflow:hidden; }
+.i-bar-mini > span{ display:block; height:100%; border-radius:99px; background:var(--i-v500); }
+/* The shift window. A span you can see, rather than two times you compare in
+   your head. In the page flow, so it earns no shadow. */
+.i-tw{ margin-top:4px; }
+.i-tw-track{
+  position:relative; height:34px; border:1px solid var(--i-rule);
+  border-radius:var(--i-r-ctl); background:var(--i-canvas); overflow:hidden;
+}
+.i-tw-fill{
+  position:absolute; top:0; bottom:0; background:var(--i-v500); opacity:.26;
+}
+.i-tw-tick{
+  position:absolute; top:0; bottom:0; width:1px; background:var(--i-rule);
+}
+.i-tw-scale{ position:relative; height:16px; margin-top:3px; }
+.i-tw-scale > span{
+  position:absolute; transform:translateX(-50%);
+  font-family:var(--i-mono); font-size:10.5px; color:var(--i-mute);
+}
+.i-tw-scale > span:first-child{ transform:none; }
+.i-tw-scale > span:last-child{ transform:translateX(-100%); }
+.i-tw-len{ margin:6px 0 0; font-size:12px; color:var(--i-ink); }
+
+/* Downloads. Five platforms read as five things to choose between, which a
+   table of five rows does not — and the icon is the fastest way to find the
+   one you came for. In the page flow, so no shadow: a rule and the canvas. */
+.i-dlgrid{
+  display:grid; gap:12px; margin-top:4px;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+}
+.i-dltile{
+  display:flex; align-items:center; gap:14px;
+  border:1px solid var(--i-rule); border-radius:var(--i-r-ctl);
+  padding:14px 16px; background:var(--i-canvas);
+}
+.i-dlicon{ font-size:26px; color:var(--i-mute); flex:none; width:30px; text-align:center; }
+.i-dlbody{ flex:1; min-width:0; }
+.i-dlbody h3{ margin:0 0 2px; font-size:13px; font-weight:500; color:var(--i-ink); }
+.i-dlnote{ margin:0; font-size:11.5px; color:var(--i-mute); }
+.i-dlfile{ margin:3px 0 0; font-size:11px; color:var(--i-dim); }
+
+/* An uploaded logo or background, shown at a size you can judge it at.
+   In the page flow, so no shadow: a rule and the canvas behind it. */
+.i-imgprev{
+  display:flex; align-items:center; gap:12px; margin-bottom:8px;
+  border:1px solid var(--i-rule); border-radius:var(--i-r-ctl);
+  padding:9px 11px; background:var(--i-canvas);
+}
+.i-imgprev img{
+  max-height:52px; max-width:180px; object-fit:contain; display:block;
+}
+
+.i-demo-note{
+  font-size:11.5px; color:var(--i-mute); border:1px dashed var(--i-rule-strong);
+  border-radius:var(--i-r-ctl); padding:9px 11px;
+}
+
+/* ---------------- tours ---------------- */
+/* The first-run card. Violet tint rather than coral: it is an invitation, not
+   an exception, and coral is reserved for things that need a decision. */
+.i-intro {
+  background: var(--i-v50);
+  border-radius: var(--i-r-float);
+  padding: 18px 20px;
+  margin: 0 0 22px;
+}
+.i-intro h2 {
+  margin: 0 0 5px; font-size: 17px; font-weight: 500;
+  letter-spacing: -.016em; color: var(--i-ink);
+}
+.i-intro p { margin: 0; font-size: 12.5px; color: var(--i-dim); max-width: 62ch; line-height: 1.55; }
+html[data-i-theme="dark"] .i-intro { background: rgba(114,101,224,.12); }
+
+.i-tourline {
+  display: flex; align-items: flex-start; gap: 11px; width: 100%;
+  padding: 9px 10px; border: 0; border-radius: var(--i-r-ctl);
+  background: transparent; text-align: left; cursor: pointer; font: inherit;
+}
+.i-tourline:hover { background: var(--i-tint); }
+.i-tourline-t { display: block; font-size: 12.5px; font-weight: 500; color: var(--i-ink); }
+.i-tourline-b { display: block; font-size: 11.5px; color: var(--i-mute); margin-top: 1px; }
+.i-tourline-m {
+  flex: none; font-size: 10.5px; color: var(--i-mute);
+  border: 1px solid var(--i-rule-strong); border-radius: 99px; padding: 1px 7px;
+}
+.i-tour-ico {
+  width: 28px; height: 28px; flex: none; border-radius: var(--i-r-ctl);
+  display: grid; place-items: center;
+  background: var(--i-v50); color: var(--i-v700); font-size: 12px;
+}
+
+/* A repeating single-value field — redirect URIs and the like. The remove
+   control sits outside the input so the inputs stay on one left edge. */
+.i-mtrow { display:flex; gap:6px; align-items:center; margin-bottom:6px }
+.i-mtrow .i-ctl { flex:1; min-width:0 }
+
+/* A View panel: labels in a narrow column, values in the rest, machine
+   strings wrapping rather than scrolling the panel sideways. */
+.i-readkv { display:grid; grid-template-columns:200px 1fr; gap:10px 16px; margin:0 }
+.i-readkv dt { color:var(--i-dim); font-size:13px; font-weight:400 }
+.i-readkv dd { margin:0; white-space:pre-wrap; word-break:break-word }
+@media (max-width:640px) { .i-readkv { grid-template-columns:1fr; gap:2px 0 } }
+
+/* A utility that was missing: muted text outside a table cell. */
+.i-dim{ color:var(--i-dim); }
+
+/* An accordion header. Used by the SCIM mapping, where two tables that are
+   rarely edited together would otherwise both be open all the time. */
+.i-acc{
+  display:flex; align-items:center; gap:8px; width:100%;
+  background:none; border:0; padding:10px 0; text-align:left;
+  font-size:14px; font-weight:500; color:var(--i-ink); cursor:pointer;
+  border-bottom:1px solid var(--i-rule);
+}
+.i-acc:hover{ color:var(--i-v600); }
+.i-acc:focus-visible{ outline:2px solid var(--i-v600); outline-offset:2px; }
+.i-acc i{ font-size:11px; color:var(--i-dim); width:12px; }
+
+/* SAML custom attributes: name, a switch, a value, and room to remove it. */
+.i-claimhead,.i-claimrow{
+  display:grid; grid-template-columns:1fr 120px 1fr 36px;
+  gap:8px; align-items:center;
+}
+.i-claimhead{ font-size:11.5px; color:var(--i-dim); margin-bottom:4px; }
+.i-claimrow{ margin-bottom:6px; }
+.i-claimrow .i-sw{ justify-content:center; }
+@media (max-width:720px){
+  .i-claimhead{ display:none; }
+  .i-claimrow{ grid-template-columns:1fr; }
+}
+
+/* The endpoint strip under an IDAM list header. Chrome, so it may carry the
+   tint; the table below it stays on the canvas. */
+.i-endpoints{
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px;
+  padding:8px 10px; margin:0 0 14px; border-radius:6px;
+  background:var(--i-tint); border:1px solid var(--i-rule);
+}
+.i-ep{
+  display:inline-flex; align-items:center; gap:7px;
+  background:none; border:0; padding:3px 6px; border-radius:4px; cursor:pointer;
+  font-size:12px; color:var(--i-ink);
+}
+.i-ep span{ color:var(--i-dim); }
+.i-ep code{ font-size:11px; color:var(--i-ink); }
+.i-ep i{ font-size:10px; color:var(--i-dim); opacity:0; }
+.i-ep:hover{ background:var(--i-canvas); }
+.i-ep:hover i{ opacity:1; }
+.i-ep:focus-visible{ outline:2px solid var(--i-v600); outline-offset:1px; }
+
+/* ===================================================================
+   The account menu. One component, both consoles, top right - where
+   velto puts it and where people look. Replaces a rail footer in each
+   that looked like an account control and was not one.
+   =================================================================== */
+.i-acct{ position:relative; }
+.i-acctb{
+  display:inline-flex; align-items:center; gap:8px;
+  background:none; border:0; padding:4px 6px 4px 4px; border-radius:20px;
+  cursor:pointer; color:var(--i-ink); font-size:12.5px;
+}
+.i-acctb:hover{ background:var(--i-tint); }
+.i-acctb:focus-visible{ outline:2px solid var(--i-v600); outline-offset:1px; }
+.i-acctav{
+  width:26px; height:26px; border-radius:50%; flex:none; overflow:hidden;
+  display:grid; place-items:center;
+  background:var(--i-v600); color:#fff; font-size:10.5px; font-weight:600;
+  letter-spacing:.02em;
+}
+.i-acctav.is-lg{ width:38px; height:38px; font-size:14px; }
+.i-acctav img{ width:100%; height:100%; object-fit:cover; }
+.i-acctn{ font-weight:450; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.i-acctc{ font-size:9px; color:var(--i-dim); }
+
+.i-acctmenu{
+  position:absolute; right:0; top:calc(100% + 7px); z-index:60;
+  min-width:252px; padding:6px;
+  background:var(--i-canvas); border:1px solid var(--i-rule);
+  border-radius:var(--i-r-float); box-shadow:var(--i-float);
+}
+.i-acctmh{
+  display:flex; gap:11px; align-items:center;
+  padding:9px 9px 11px; margin-bottom:4px;
+  border-bottom:1px solid var(--i-rule);
+}
+.i-acctmh span{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+.i-acctmh strong{ font-size:13px; font-weight:500; }
+.i-acctmh small{ font-size:11.5px; color:var(--i-dim); overflow:hidden; text-overflow:ellipsis; }
+.i-acctctx{ color:var(--i-v600) !important; font-size:10.5px !important; }
+
+.i-acctitem{
+  display:flex; align-items:center; gap:10px; width:100%;
+  padding:8px 9px; border:0; border-radius:6px; background:none;
+  font-size:12.5px; color:var(--i-ink); text-decoration:none; cursor:pointer;
+  text-align:left;
+}
+.i-acctitem:hover{ background:var(--i-tint); }
+.i-acctitem:focus-visible{ outline:2px solid var(--i-v600); outline-offset:-2px; }
+.i-acctitem i{ width:14px; font-size:12px; color:var(--i-dim); }
+.i-acctitem span{ flex:1; }
+.i-acctitem .i-count{ flex:none; }
+/* Sign out is the one thing here you cannot undo by clicking again. */
+.i-acctitem.is-bad:hover{ background:var(--i-bad-bg); color:var(--i-bad); }
+.i-acctitem.is-bad:hover i{ color:var(--i-bad); }
+.i-acctdiv{ margin:5px 9px; border:0; border-top:1px solid var(--i-rule); }
+
+
+/* ===================================================================
+   The desktop agent prototype.
+   Drawn on a desktop with a taskbar because every judgement here is a
+   judgement about proportion: a tray panel is small, a toast smaller,
+   a setup window a fixed strip. At their real size the questions
+   answer themselves.
+   =================================================================== */
+
+.ag-steps{
+  list-style:none; display:flex; flex-wrap:wrap; gap:6px;
+  margin:0 0 18px; padding:0;
+}
+.ag-step{
+  display:flex; align-items:center; gap:8px;
+  border:1px solid var(--i-rule); border-radius:8px;
+  background:var(--i-canvas); color:var(--i-dim);
+  padding:7px 11px; font-size:12.5px; cursor:pointer;
+}
+.ag-step:hover{ border-color:var(--i-v600); color:var(--i-ink); }
+.ag-step.is-on{ border-color:var(--i-v600); background:var(--i-v50); color:var(--i-v700); font-weight:500; }
+.ag-step.is-done .ag-stepn{ background:var(--i-v600); color:#fff; }
+.ag-stepn{
+  width:18px; height:18px; border-radius:50%; flex:none;
+  display:grid; place-items:center; font-size:10px;
+  background:var(--i-tint); color:var(--i-dim);
+}
+.ag-kind{
+  font-size:9.5px; text-transform:uppercase; letter-spacing:.05em;
+  padding:1px 6px; border-radius:20px; background:var(--i-tint); color:var(--i-dim);
+}
+.ag-kind.is-web{ background:var(--i-v50); color:var(--i-v700); }
+
+.ag-split{ display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:20px; align-items:start; }
+@media (max-width:980px){ .ag-split{ grid-template-columns:1fr; } }
+
+/* ------------------------------------------------------- the desktop */
+.ag-desk{
+  position:relative; border-radius:10px; overflow:hidden;
+  min-height:470px; padding:26px;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(145deg,#1b3b63,#0d1a2b 65%);
+  border:1px solid var(--i-rule);
+}
+.ag-desk.is-light{ background:linear-gradient(145deg,#cfe0f2,#eef3f9 65%); }
+.ag-desk *{ box-sizing:border-box; }
+
+.ag-taskbar{
+  position:absolute; left:0; right:0; bottom:0; height:30px;
+  background:rgba(12,14,20,.86); display:flex; align-items:center;
+  justify-content:space-between; padding:0 12px;
+  backdrop-filter:blur(8px);
+}
+.ag-desk.is-light .ag-taskbar{ background:rgba(246,248,251,.9); }
+.ag-start{ width:14px; height:14px; border-radius:3px; background:#4aa3f0; }
+.ag-trayzone{ display:flex; align-items:center; gap:10px; }
+.ag-trayicon{ font-size:11px; color:#8b8f9a; }
+.ag-trayicon.is-on{ color:#4ec08a; }
+.ag-trayicon.is-bad{ color:#e8775f; }
+.ag-clock{ font-size:10.5px; color:#cfd3dc; }
+.ag-desk.is-light .ag-clock{ color:#41444c; }
+
+/* -------------------------------------------------- a native window */
+.ag-win{
+  width:100%; max-width:430px; border-radius:9px; overflow:hidden;
+  box-shadow:0 18px 50px rgba(0,0,0,.45); margin-bottom:34px;
+  background:#1c1d22; color:#e9e9ee;
+}
+.ag-desk.is-light .ag-win{ background:#fff; color:#1b1c20; }
+.ag-titlebar{
+  display:flex; align-items:center; gap:9px; padding:8px 10px;
+  background:#232429; font-size:11.5px;
+}
+.ag-desk.is-light .ag-titlebar{ background:#f1f2f5; }
+.ag-tbtitle{ flex:1; }
+.ag-tbbtns{ display:flex; gap:11px; opacity:.6; font-size:9px; font-style:normal; }
+.ag-tbbtns i{ font-style:normal; }
+
+.ag-body{ padding:20px 20px 14px; }
+.ag-h2{ font-size:16px; font-weight:500; margin:0 0 8px; }
+.ag-p{ font-size:12.5px; line-height:1.6; opacity:.78; margin:0 0 16px; }
+
+.ag-hero{ text-align:center; margin-bottom:16px; }
+.ag-heroico{
+  width:44px; height:44px; border-radius:12px; display:inline-grid; place-items:center;
+  background:rgba(91,79,209,.16); color:#8d82ff; font-size:19px; margin-bottom:11px;
+}
+.ag-hero h2{ font-size:15px; font-weight:500; margin:0 0 6px; line-height:1.45; }
+.ag-hero p{ font-size:12px; opacity:.72; margin:0; line-height:1.55; }
+
+.ag-will{ list-style:none; margin:0 0 6px; padding:0; }
+.ag-will li{
+  display:flex; gap:9px; font-size:11.5px; line-height:1.5;
+  opacity:.8; padding:5px 0;
+}
+.ag-will i{ color:#4ec08a; font-size:10px; padding-top:3px; }
+
+.ag-prog{ list-style:none; margin:0 0 13px; padding:0; }
+.ag-prog li{ display:flex; gap:10px; align-items:center; font-size:12.5px; padding:6px 0; opacity:.5; }
+.ag-prog li.is-done{ opacity:.78; }
+.ag-prog li.is-now{ opacity:1; }
+.ag-prog i{ font-size:11px; color:#4ec08a; width:13px; }
+.ag-prog li.is-now i{ color:#8d82ff; }
+.ag-bar{ height:4px; border-radius:2px; background:rgba(255,255,255,.1); overflow:hidden; }
+.ag-desk.is-light .ag-bar{ background:rgba(0,0,0,.08); }
+.ag-bar span{ display:block; height:100%; background:#5B4FD1; }
+.ag-details{ margin-top:14px; font-size:11px; opacity:.6; }
+.ag-details pre{ margin:7px 0 0; font-size:10px; line-height:1.6; opacity:.8; white-space:pre-wrap; }
+
+.ag-label{ display:block; font-size:11.5px; opacity:.72; margin-bottom:5px; }
+.ag-inputwrap{ position:relative; }
+.ag-input,.ag-winput{
+  width:100%; padding:9px 32px 9px 11px; font-size:12.5px;
+  border-radius:7px; border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.05); color:inherit; font-family:inherit;
+}
+.ag-desk.is-light .ag-input,.ag-desk.is-light .ag-winput{
+  border-color:#dcdde3; background:#fff;
+}
+.ag-ok{ position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#4ec08a; font-size:12px; }
+.ag-hint{ font-size:11px; opacity:.6; margin:6px 0 0; }
+
+.ag-foot{
+  display:flex; align-items:center; gap:8px; margin-top:20px;
+  padding-top:13px; border-top:1px solid rgba(255,255,255,.08);
+  font-size:11.5px;
+}
+.ag-desk.is-light .ag-foot{ border-top-color:#e9eaee; }
+.ag-foot .i-right{ margin-left:auto; display:flex; gap:8px; }
+.ag-footnote{ opacity:.6; }
+.ag-foot a{ color:#8d82ff; }
+
+.ag-btn{
+  border:1px solid transparent; border-radius:6px; padding:7px 15px;
+  font-size:12px; font-family:inherit; cursor:pointer;
+  background:rgba(255,255,255,.08); color:inherit;
+}
+.ag-desk.is-light .ag-btn{ background:#eceef2; }
+.ag-primary{ background:#5B4FD1; color:#fff; }
+.ag-ghost{ background:none; border-color:rgba(255,255,255,.18); }
+.ag-desk.is-light .ag-ghost{ border-color:#d6d8df; }
+.ag-wide{ width:100%; margin-top:4px; padding:10px; }
+.ag-tiny{ padding:4px 10px; font-size:11px; }
+
+/* ----------------------------------------------- the web sign-in */
+.ag-webwin{ max-width:400px; }
+
+/* The sign-in frame.
+   The real agent's window is WebView2 at roughly this size, so the mock is
+   the real page at the real width rather than a drawing of it. 560 is tall
+   enough for the six-method step without the frame scrolling, which is what
+   makes an embedded page feel embedded rather than squeezed. */
+.ag-webframe{
+  display:block; width:100%; height:560px;
+  border:0; background:var(--i-canvas);
+}
+.ag-brand{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  font-size:14px; font-weight:500; margin-bottom:20px; letter-spacing:-.01em;
+}
+.ag-wh{ font-size:17px; font-weight:450; margin:0 0 4px; }
+.ag-wsub{ font-size:11.5px; opacity:.6; margin:0 0 20px; }
+.ag-wlabel{ display:block; text-align:left; font-size:11.5px; opacity:.72; margin-bottom:5px; }
+.ag-winput{ margin-bottom:13px; padding-right:11px; }
+.ag-winput.is-bad{ border-color:#e8775f; }
+.ag-wfoot{ font-size:10.5px; opacity:.6; margin:14px 0 0; line-height:1.55; }
+.ag-wfoot a{ color:#8d82ff; }
+
+.ag-methods{ list-style:none; margin:0; padding:0; text-align:left; }
+.ag-methods li{
+  display:flex; align-items:center; gap:11px; padding:10px 12px;
+  border:1px solid rgba(255,255,255,.12); border-radius:8px; margin-bottom:7px;
+  font-size:12.5px;
+}
+.ag-desk.is-light .ag-methods li{ border-color:#e4e5ea; }
+.ag-methods li.is-on{ border-color:#5B4FD1; background:rgba(91,79,209,.1); }
+.ag-methods li > i:first-child{ color:#8d82ff; font-size:13px; width:15px; }
+.ag-methods span{ flex:1; display:flex; flex-direction:column; }
+.ag-methods small{ font-size:10.5px; opacity:.6; }
+.ag-methods .c{ font-size:9px; opacity:.45; }
+
+/* The error has reserved space, so nothing below it moves. */
+.ag-err{
+  display:flex; gap:9px; text-align:left; padding:10px 12px; margin-bottom:14px;
+  border-radius:7px; background:rgba(232,119,95,.13); font-size:11px; line-height:1.5;
+}
+.ag-err i{ color:#e8775f; font-size:12px; padding-top:2px; }
+.ag-err a{ color:#8d82ff; }
+
+/* ------------------------------------------------ tray panel + toast */
+.ag-tray{
+  position:absolute; right:14px; bottom:40px; width:244px;
+  border-radius:10px; overflow:hidden; background:#1c1d22; color:#e9e9ee;
+  box-shadow:0 16px 44px rgba(0,0,0,.5);
+}
+.ag-desk.is-light .ag-tray{ background:#fff; color:#1b1c20; }
+.ag-trayh{ display:flex; gap:10px; align-items:flex-start; padding:14px 14px 12px; }
+.ag-dot{ width:9px; height:9px; border-radius:50%; margin-top:4px; flex:none; background:#8b8f9a; }
+.ag-trayh.is-connected .ag-dot{ background:#4ec08a; }
+.ag-trayh.is-connecting .ag-dot{ background:#e3b15c; animation:ag-pulse 1.3s ease-in-out infinite; }
+.ag-trayh.is-dropped .ag-dot{ background:#e8775f; }
+@keyframes ag-pulse{ 0%,100%{ opacity:1 } 50%{ opacity:.35 } }
+.ag-trayst{ display:flex; flex-direction:column; gap:2px; }
+.ag-trayst strong{ font-size:13px; font-weight:500; }
+.ag-trayst small{ font-size:10.5px; opacity:.62; }
+.ag-trayerr{
+  margin:0 12px 10px; padding:8px 10px; border-radius:6px;
+  background:rgba(232,119,95,.13); font-size:10.5px; line-height:1.5;
+}
+.ag-traymenu{ list-style:none; margin:0; padding:5px; border-top:1px solid rgba(255,255,255,.08); }
+.ag-desk.is-light .ag-traymenu{ border-top-color:#eceef2; }
+.ag-traymenu li{
+  display:flex; align-items:center; gap:10px; padding:8px 9px;
+  border-radius:6px; font-size:12px; cursor:pointer;
+}
+.ag-traymenu li:hover{ background:rgba(255,255,255,.07); }
+.ag-desk.is-light .ag-traymenu li:hover{ background:#f3f4f7; }
+.ag-traymenu i{ width:14px; font-size:11px; opacity:.6; }
+.ag-traymenu .c{ margin-left:auto; font-size:9px; opacity:.4; }
+.ag-traymenu li.is-primary{ color:#8d82ff; }
+.ag-traymenu li.is-dim{ opacity:.5; }
+
+.ag-toast{
+  position:absolute; right:14px; bottom:300px; width:286px;
+  display:flex; gap:11px; padding:13px; border-radius:9px;
+  background:#1c1d22; color:#e9e9ee; box-shadow:0 14px 38px rgba(0,0,0,.45);
+}
+.ag-desk.is-light .ag-toast{ background:#fff; color:#1b1c20; }
+.ag-toastico{
+  width:30px; height:30px; border-radius:8px; flex:none; display:grid; place-items:center;
+  background:rgba(91,79,209,.16); color:#8d82ff; font-size:13px;
+}
+.ag-toast.is-dropped .ag-toastico{ background:rgba(232,119,95,.16); color:#e8775f; }
+.ag-toastb{ flex:1; min-width:0; }
+.ag-toastb strong{ font-size:12px; font-weight:500; display:block; }
+.ag-toastb p{ font-size:11.5px; opacity:.72; margin:3px 0 0; line-height:1.5; }
+.ag-toasta{ display:flex; gap:7px; margin-top:10px; }
+
+.ag-caption{
+  position:absolute; left:0; right:0; bottom:38px; margin:0;
+  text-align:center; font-size:10.5px; color:rgba(255,255,255,.5);
+  padding:0 20px; line-height:1.5;
+}
+.ag-desk.is-light .ag-caption{ color:rgba(0,0,0,.45); }
+.ag-caption strong{ color:rgba(255,255,255,.75); }
+.ag-desk.is-light .ag-caption strong{ color:rgba(0,0,0,.7); }
+.ag-traycap{ bottom:38px; text-align:left; padding-left:24px; max-width:300px; }
+
+/* ------------------------------------------------------- the notes */
+.ag-notes{
+  border:1px solid var(--i-rule); border-radius:10px; padding:18px;
+  position:sticky; top:18px;
+}
+.ag-notes h2{ font-size:16px; font-weight:450; margin:0 0 12px; }
+.ag-kindline{
+  display:flex; gap:9px; font-size:11.5px; line-height:1.55;
+  padding:10px 12px; border-radius:7px; margin:0 0 14px;
+  background:var(--i-tint); color:var(--i-dim);
+}
+.ag-kindline i{ padding-top:2px; font-size:11px; }
+.ag-kindline.is-web{ background:var(--i-v50); color:var(--i-v700); }
+.ag-kindline strong{ font-weight:500; }
+.ag-note{ font-size:13px; line-height:1.65; color:var(--i-dim); margin:0 0 16px; }
+.ag-nav{ display:flex; gap:8px; }
+
+/* ----------------------------------------------- engineering notes */
+.ag-eng{ margin-top:36px; }
+.ag-fixes{ display:grid; grid-template-columns:repeat(auto-fit,minmax(252px,1fr)); gap:14px; margin-top:14px; }
+.ag-fixes article{ border:1px solid var(--i-rule); border-radius:9px; padding:15px; }
+.ag-fixes h3{ font-size:13.5px; font-weight:500; margin:0 0 7px; }
+.ag-fixes p{ font-size:12.5px; line-height:1.6; color:var(--i-dim); margin:0; }

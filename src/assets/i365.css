@@ -1,0 +1,1274 @@
+/* ==============================================================
+   i365 — production component layer
+   ==============================================================
+   The design system from the prototype, as classes you can ship.
+
+   Everything is prefixed `i-`, so nothing collides with Bootstrap and
+   nothing collides with the 352 class names already in the product.
+   Both stylesheets can be loaded at once, which is the point: a screen
+   is migrated when its Blade partial starts emitting `i-` markup, and
+   until then it keeps rendering exactly as it does today.
+
+     <link rel="stylesheet" href="/dist/css/vendor.css">   Bootstrap, stays
+     <link rel="stylesheet" href="/dist/css/style.css">    legacy, stays
+     <link rel="stylesheet" href="/dist/css/i365.css">     this
+
+   What does NOT change when a screen migrates:
+     routes, controllers, API payloads, form field `name` attributes,
+     element `id`s, `v-model` bindings, validation, permissions.
+   What does change: the wrapper markup around them.
+
+   SECTIONS
+     1  tokens          6  table
+     2  base            7  side panel
+     3  shell + rail    8  modal, toast
+     4  page header     9  form
+     5  metrics, bars  10  controls, status
+   ============================================================== */
+
+/* ================== 1 · tokens ================== */
+:root{
+  /* neutrals */
+  --i-g25:#fafafb; --i-g50:#f7f7f8; --i-g100:#eeeef0; --i-g150:#e3e3e7;
+  --i-g400:#9394a1; --i-g500:#747686; --i-g600:#5e5f6e;
+
+  --i-canvas:#ffffff;
+  --i-tint:var(--i-g25);
+  --i-rule:var(--i-g100);
+  --i-rule-strong:var(--i-g150);
+  --i-ink:#1f2023;
+  --i-dim:var(--i-g600);
+  --i-mute:var(--i-g400);
+
+  /* violet = interactive, and only interactive */
+  --i-v50:#f3f1ff; --i-v500:#7265e0; --i-v600:#5b4fd1; --i-v700:#4a3fb0;
+  /* One hue stepped, for splitting a bar by the values of a second field.
+     A categorical rainbow would say the segments are unrelated things; they
+     are values of one field, so they are shades of one colour. Explicit
+     stops rather than color-mix: the mix needed a grey token that does not
+     exist, and silently resolved to nothing. */
+  --i-seg1:#4a3fb0; --i-seg2:#5b4fd1; --i-seg3:#7f73e6;
+  --i-seg4:#a79ef0; --i-seg5:#c8c2f6; --i-seg6:#e2defb;
+  --i-primary:var(--i-v600); --i-primary-ink:#ffffff;
+
+  /* coral = attention, and only attention */
+  --i-c50:#fff3ef; --i-c500:#ef6a45; --i-c600:#c2451f; --i-c-line:#f7d8cd;
+
+  --i-ok:#1a9e4b; --i-ok-bg:#eefaf1; --i-ok-line:#c9edd6;
+  --i-bad:#d92d3f; --i-bad-bg:#fdf0f1;
+
+  /* elevation is earned: only floating layers get one */
+  --i-float:0 0 0 1px rgba(31,32,35,.06),0 8px 24px -8px rgba(31,32,35,.16);
+  --i-float-lg:0 0 0 1px rgba(31,32,35,.07),0 24px 56px -20px rgba(31,32,35,.28);
+
+  --i-rail-bg:var(--i-g50);
+  --i-rail-rule:var(--i-g150);
+  --i-rail-ink:var(--i-ink);
+  --i-rail-dim:var(--i-g600);
+  --i-rail-mute:var(--i-g400);
+  --i-rail-hover:rgba(31,32,35,.045);
+  --i-rail-active:var(--i-v50);
+  --i-rail-active-ink:var(--i-v700);
+
+  /* One spacing scale. Panels, stats and form sections were each using
+     their own numbers - 18/24, 22/26, 26 - which reads as sloppy rhythm even
+     when every individual value is defensible. */
+  --i-s1:4px; --i-s2:8px; --i-s3:12px; --i-s4:16px;
+  --i-s5:22px; --i-s6:26px; --i-s7:34px;
+
+  --i-r-ctl:6px;          /* controls */
+  --i-r-float:8px;        /* floating layers */
+  --i-rail-w:238px;
+  --i-topbar-h:50px;
+  --i-gut:34px;           /* page gutter; rows bleed to it */
+  --i-row-h:52px;
+
+  --i-sans:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --i-mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+
+  /* Type scale. Named sizes rather than literals scattered across 90
+     selectors, which is how the old file ended up with 12, 12.5, 13 and 14
+     all doing the job of "body". */
+  --i-t-title:25px;     /* page title - the heaviest thing on screen, and not bold */
+  --i-t-section:15px;   /* panel and section headings */
+  --i-t-body:13px;      /* rows, controls, most of the interface */
+  --i-t-meta:12px;      /* secondary lines under a body line */
+  --i-t-micro:11px;     /* counts, timestamps, column heads */
+
+  /* Tracking is a function of size: Geist needs tightening at display sizes
+     and opening up at micro sizes, which is the opposite of applying one
+     letter-spacing everywhere. */
+  --i-tr-title:-.021em;
+  --i-tr-section:-.013em;
+  --i-tr-body:-.004em;
+  --i-tr-micro:.055em;
+
+  --i-sb:rgba(31,32,35,.17); --i-sb-hi:rgba(31,32,35,.34);
+  --i-rail-sb:rgba(31,32,35,.15); --i-rail-sb-hi:rgba(31,32,35,.3);
+}
+
+/* Dark is designed, not inverted. Elevation there is a ring, because a drop
+   shadow does nothing on a dark ground. */
+html[data-i-theme="dark"]{
+  --i-canvas:#131316;
+  --i-tint:#191a1e;
+  --i-rule:rgba(255,255,255,.07);
+  --i-rule-strong:rgba(255,255,255,.12);
+  --i-ink:#f2f2f4;
+  --i-dim:#9394a1;
+  --i-mute:#747686;
+
+  --i-v50:rgba(114,101,224,.16);
+  --i-v500:#8578ee; --i-v600:#8578ee; --i-v700:#a99ff0;
+  --i-primary:var(--i-v500); --i-primary-ink:#15151a;
+
+  --i-c50:rgba(255,142,117,.13);
+  --i-c500:#ff9576; --i-c600:#ffb49c; --i-c-line:rgba(255,142,117,.26);
+  --i-ok:#5cd98a; --i-ok-bg:rgba(34,197,67,.12); --i-ok-line:rgba(34,197,67,.22);
+  --i-bad:#ff7a8a; --i-bad-bg:rgba(239,68,68,.12);
+
+  --i-float:0 0 0 1px rgba(255,255,255,.10),0 10px 28px -8px rgba(0,0,0,.7);
+  --i-float-lg:0 0 0 1px rgba(255,255,255,.12),0 26px 60px -18px rgba(0,0,0,.85);
+
+  --i-rail-bg:#17171b;
+  --i-rail-rule:rgba(255,255,255,.08);
+  --i-rail-ink:#f2f2f4;
+  --i-rail-dim:#9394a1;
+  --i-rail-mute:#747686;
+  --i-rail-hover:rgba(255,255,255,.06);
+  --i-rail-active:rgba(114,101,224,.18);
+  --i-rail-active-ink:#b7afff;
+
+  --i-sb:rgba(255,255,255,.15); --i-sb-hi:rgba(255,255,255,.30);
+  --i-rail-sb:rgba(255,255,255,.14); --i-rail-sb-hi:rgba(255,255,255,.28);
+}
+/* the rail can be dark while the workspace stays light */
+html[data-i-rail="dark"]{
+  --i-rail-bg:#17171b;
+  --i-rail-rule:rgba(255,255,255,.08);
+  --i-rail-ink:#f2f2f4;
+  --i-rail-dim:#9394a1;
+  --i-rail-mute:#747686;
+  --i-rail-hover:rgba(255,255,255,.06);
+  --i-rail-active:rgba(114,101,224,.18);
+  --i-rail-active-ink:#b7afff;
+  --i-rail-sb:rgba(255,255,255,.14); --i-rail-sb-hi:rgba(255,255,255,.28);
+}
+
+/* ================== 2 · base ================== */
+.i-app,.i-app *,.i-app *::before,.i-app *::after{ box-sizing:border-box; }
+/* every component below sets an explicit display, which outranks the UA's
+   [hidden] rule — so [hidden] has to be restated at component weight */
+[hidden]{ display:none !important; }
+.i-app{
+  font-family:var(--i-sans);
+  font-size:var(--i-t-body);
+  line-height:1.55;
+  letter-spacing:var(--i-tr-body);
+  color:var(--i-ink);
+  background:var(--i-canvas);
+  -webkit-font-smoothing:antialiased;
+  /* Figures line up in a column whatever the digits. A list of 2,140 devices
+     over 1,820 users is unreadable when the 1s are narrow, and this console
+     is mostly columns of numbers. */
+  font-variant-numeric:tabular-nums;
+  font-optical-sizing:auto;
+  font-feature-settings:"cv05","ss01";
+}
+.i-app :focus-visible{
+  outline:2px solid var(--i-v600);
+  outline-offset:2px;
+  border-radius:3px;
+}
+/* machine-generated strings, read character by character: IPs, MACs, device
+   ids, ports, timestamps. Names and labels are words, and stay in sans. */
+.i-tech{
+  font-family:var(--i-mono);
+  font-size:12px;
+  letter-spacing:-.02em;
+  color:var(--i-dim);
+  font-variant-ligatures:none;
+}
+.i-num{ font-variant-numeric:tabular-nums; }
+/* secondary column: still a word, just not the one you scan for */
+.i-dimcell{ color:var(--i-dim); }
+.i-sr{
+  position:absolute; width:1px; height:1px; margin:-1px;
+  padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+
+.i-app *{ scrollbar-width:thin; scrollbar-color:var(--i-sb) transparent; }
+.i-app ::-webkit-scrollbar{ width:10px; height:10px; }
+.i-app ::-webkit-scrollbar-track,
+.i-app ::-webkit-scrollbar-corner{ background:transparent; }
+.i-app ::-webkit-scrollbar-thumb{
+  background-color:var(--i-sb); border-radius:99px;
+  border:3px solid transparent; background-clip:content-box; min-height:34px;
+}
+.i-app ::-webkit-scrollbar-thumb:hover{ background-color:var(--i-sb-hi); }
+
+/* ================== 3 · shell + rail ================== */
+.i-app{
+  display:grid;
+  grid-template-columns:var(--i-rail-w) minmax(0,1fr);
+  height:100dvh;
+  overflow:hidden;
+}
+.i-rail{
+  display:flex; flex-direction:column; min-height:0;
+  background:var(--i-rail-bg);
+  border-right:1px solid var(--i-rail-rule);
+  color:var(--i-rail-ink);
+}
+.i-brand{
+  display:flex; align-items:center; gap:9px;
+  height:var(--i-topbar-h); padding:0 14px 0 16px; flex:none;
+}
+.i-brand .i-mark{ width:24px; height:24px; flex:none; }
+/* The wordmark PNG is deliberately not used here: brand purple #660099 lands
+   near 2:1 on the dark rail. The mark keeps its own colours and the word is
+   set live, so it reads in both themes. The official lockup, unaltered, is
+   used on the sign-in screen where it sits on white at size. */
+.i-brand .i-wm{
+  font-weight:550; font-size:14px; letter-spacing:var(--i-tr-section); color:var(--i-rail-ink);
+}
+.i-brand .i-tenant{
+  margin-left:auto; font-size:11px; color:var(--i-rail-mute);
+  max-width:84px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.i-navwrap{
+  flex:1; min-height:0; overflow-y:auto; padding:6px 10px 14px;
+  scrollbar-color:var(--i-rail-sb) transparent;
+}
+.i-navwrap::-webkit-scrollbar-thumb{ background-color:var(--i-rail-sb); }
+.i-navwrap::-webkit-scrollbar-thumb:hover{ background-color:var(--i-rail-sb-hi); }
+
+/* 19 top-level entries is too many to scan as one list. Six labelled groups
+   turn one 19-item decision into a 6-item one. The labels are not clickable
+   and carry no icon; they are signposts, not destinations. */
+.i-navsec{
+  padding:16px 8px 5px; font-size:10px; font-weight:500;
+  letter-spacing:var(--i-tr-micro); text-transform:uppercase; color:var(--i-rail-mute);
+}
+.i-navsec:first-child{ padding-top:6px; }
+.i-navitem{
+  display:flex; align-items:center; gap:10px; width:100%;
+  padding:7px 9px; border:0; border-radius:var(--i-r-ctl);
+  background:transparent; color:var(--i-rail-dim);
+  font:inherit; font-size:13px; text-align:left; text-decoration:none;
+  cursor:pointer; transition:background-color .12s,color .12s;
+}
+.i-navitem:hover{ background:var(--i-rail-hover); color:var(--i-rail-ink); }
+.i-navitem[aria-current="page"],
+.i-navitem.is-active{
+  background:var(--i-rail-active); color:var(--i-rail-active-ink); font-weight:500;
+}
+.i-navitem svg{ width:16px; height:16px; flex:none; stroke-width:1.6; }
+.i-navitem .i-lab{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* a count on a nav item is a reason to click it; it earns its place only when
+   something is actually waiting */
+.i-navitem .i-count{
+  flex:none; margin-left:auto; padding-left:8px;
+  font-size:11px; color:var(--i-c600); font-variant-numeric:tabular-nums;
+}
+/* The label gives way before the count does: a number squeezed against a
+   truncated word is the thing that looks broken, not the truncation. */
+.i-subitem .i-lab{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.i-subitem .i-count{
+  flex:none; margin-left:auto;
+  font-size:11px; color:var(--i-c600); font-variant-numeric:tabular-nums;
+}
+.i-navitem .i-caret{ width:14px; height:14px; color:var(--i-rail-mute); transition:transform .15s; }
+.i-navitem[aria-expanded="true"] .i-caret{ transform:rotate(90deg); }
+.i-subitem{
+  display:flex; align-items:center; gap:8px;
+  padding:6px 9px 6px 35px; border-radius:var(--i-r-ctl);
+  color:var(--i-rail-dim); font-size:var(--i-t-meta); text-decoration:none;
+}
+.i-subitem:hover{ background:var(--i-rail-hover); color:var(--i-rail-ink); }
+.i-subitem[aria-current="page"],
+.i-subitem.is-active{ background:var(--i-rail-active); color:var(--i-rail-active-ink); font-weight:500; }
+
+.i-railfoot{
+  flex:none; border-top:1px solid var(--i-rail-rule);
+  padding:9px 12px; display:flex; align-items:center; gap:9px;
+}
+.i-av{
+  width:26px; height:26px; flex:none; border-radius:99px;
+  background:var(--i-v50); color:var(--i-v700);
+  display:grid; place-items:center; font-size:var(--i-t-micro); font-weight:600;
+}
+html[data-i-rail="dark"] .i-av,
+html[data-i-theme="dark"] .i-av{ background:rgba(255,255,255,.08); color:var(--i-rail-ink); }
+.i-railfoot .i-uname{
+  font-size:var(--i-t-meta); color:var(--i-rail-ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+.i-main{
+  min-width:0; display:flex; flex-direction:column;
+  overflow-y:auto; overflow-x:hidden;
+  scrollbar-gutter:stable; background:var(--i-canvas);
+}
+/* The topbar carries only where-you-are and session state. It is not a second
+   navigation and it does not repeat the brand. */
+.i-topbar{
+  position:sticky; top:0; z-index:20; flex:none;
+  height:var(--i-topbar-h); display:flex; align-items:center; gap:10px;
+  padding:0 var(--i-gut); background:var(--i-canvas);
+  border-bottom:1px solid var(--i-rule);
+}
+.i-crumb{ font-size:var(--i-t-meta); color:var(--i-mute); display:flex; align-items:center; gap:6px; }
+.i-crumb a{ color:var(--i-mute); text-decoration:none; }
+.i-crumb a:hover{ color:var(--i-ink); }
+.i-crumb strong{ color:var(--i-ink); font-weight:450; }
+.i-tgroup{ display:flex; align-items:center; gap:3px; flex:none; }
+.i-tsep{
+  width:1px; height:18px; margin:0 5px; background:var(--i-rule); flex:none;
+}
+
+/* ---- global search in the topbar ---- */
+/* The bar is the widest thing in the chrome on purpose. It is the only
+   control that reaches all 68 destinations, and sizing it like the buttons
+   next to it would say it matters as much as the theme toggle. */
+.i-cmd{ position:relative; flex:1; min-width:0; max-width:560px; margin:0 auto; }
+.i-cmdbar{
+  display:flex; align-items:center; gap:9px; height:34px; padding:0 11px;
+  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-ctl);
+  background:var(--i-tint); cursor:text;
+  transition:border-color .16s ease, background .16s ease;
+}
+.i-cmdbar:hover{ border-color:var(--i-dim); }
+.i-cmdbar.is-open,
+.i-cmdbar:focus-within{
+  background:var(--i-canvas); border-color:var(--i-v600);
+  box-shadow:0 0 0 3px var(--i-v50);
+}
+.i-cmdbar > i{ color:var(--i-mute); font-size:12px; flex:none; }
+.i-cmdbar input{
+  border:0; outline:0; background:transparent; flex:1; min-width:0;
+  font:inherit; font-size:var(--i-t-meta); color:var(--i-ink);
+}
+.i-cmdbar input::placeholder{ color:var(--i-mute); }
+.i-cmdbar input::-webkit-search-cancel-button{ -webkit-appearance:none; }
+.i-kbd{
+  flex:none; font-family:var(--i-mono); font-size:10px; line-height:1;
+  padding:3.5px 5px; color:var(--i-mute);
+  border:1px solid var(--i-rule-strong); border-radius:4px;
+  background:var(--i-canvas);
+}
+
+.i-cmdpop{
+  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:60;
+  padding:5px; border:1px solid var(--i-rule-strong);
+  border-radius:var(--i-r-float); background:var(--i-canvas);
+  box-shadow:var(--i-float-lg);
+  max-height:min(62vh,440px); overflow:auto;
+}
+html[data-i-theme="dark"] .i-cmdpop{ box-shadow:none; outline:1px solid rgba(255,255,255,.09); }
+.i-cmdrow{
+  display:flex; align-items:center; gap:10px; width:100%;
+  padding:7px 9px; border:0; border-radius:5px; background:transparent;
+  font:inherit; text-align:left; cursor:pointer; color:var(--i-ink);
+}
+.i-cmdrow.is-active{ background:var(--i-v50); }
+.i-cmdicon{ width:15px; text-align:center; color:var(--i-mute); font-size:12px; flex:none; }
+.i-cmdrow.is-active .i-cmdicon{ color:var(--i-v700); }
+.i-cmdtext{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.i-cmdt{ font-size:var(--i-t-meta); line-height:1.35; }
+.i-cmds{
+  font-size:var(--i-t-micro); color:var(--i-mute); line-height:1.35;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.i-cmdkind{
+  flex:none; font-size:10px; letter-spacing:var(--i-tr-micro);
+  text-transform:uppercase; color:var(--i-mute);
+}
+.i-cmdnote{ margin:0; padding:12px 10px; font-size:var(--i-t-meta); color:var(--i-mute); }
+
+@media (max-width:767.98px){ .i-cmd{ margin-left:0; } .i-kbd{ display:none; } }
+.i-tbtn{
+  display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 9px;
+  border:0; border-radius:var(--i-r-ctl); background:transparent;
+  color:var(--i-dim); font:inherit; font-size:12px; cursor:pointer;
+}
+.i-tbtn:hover{ background:var(--i-tint); color:var(--i-ink); }
+.i-tbtn:active{ transform:translateY(1px); }
+.i-tbtn.i-icon{ width:30px; padding:0; justify-content:center; }
+.i-tbtn:focus-visible{ outline:2px solid var(--i-v600); outline-offset:1px; }
+.i-tbtn svg{ width:15px; height:15px; }
+/* the session timer is a machine string and reads better in mono */
+.i-sessclock{
+  font-family:var(--i-mono); font-size:var(--i-t-micro); color:var(--i-mute);
+  padding-right:6px; font-variant-numeric:tabular-nums;
+}
+/* The trailing 72px was for breathing room; `--i-badge-h` adds whatever the
+   host's deploy badge occupies on top of it. Netlify pins a 197x64 iframe to
+   this corner at the maximum z-index, and it was swallowing clicks on the
+   last table row. The variable is 0 unless a badge is actually measured, so
+   local development and any other host are unchanged. See lib/badge-gap.js. */
+.i-page{
+  padding:26px var(--i-gut) calc(72px + var(--i-badge-h, 0px));
+  flex:1; min-width:0;
+}
+
+/* ================== 4 · page header ================== */
+/* One header for all 66 screens: title, one line of context, actions right.
+   The heaviest thing on the page is the title, and it is not bold. */
+.i-phead{
+  display:flex; align-items:flex-start; gap:20px;
+  margin:0 0 22px; flex-wrap:wrap;
+}
+.i-phead h1{
+  margin:0; font-size:var(--i-t-title); font-weight:450;
+  letter-spacing:var(--i-tr-title); line-height:1.15; color:var(--i-ink);
+}
+.i-phead .i-sub{ margin:5px 0 0; font-size:var(--i-t-meta); color:var(--i-mute); }
+.i-phead .i-acts{ margin-left:auto; display:flex; align-items:center; gap:8px; }
+
+/* The attention band answers "what needs me?" before the page answers
+   "what exists?". It renders only when something is genuinely waiting —
+   an empty band is worse than no band. */
+.i-band{
+  display:flex; align-items:center; gap:24px; flex-wrap:wrap;
+  padding:16px 0 20px; border-bottom:1px solid var(--i-rule); margin-bottom:22px;
+}
+.i-band .i-bt{ font-size:var(--i-t-section); font-weight:450; letter-spacing:var(--i-tr-section); display:flex; align-items:center; gap:9px; }
+.i-band .i-bs{ margin:3px 0 0 19px; font-size:var(--i-t-meta); color:var(--i-mute); }
+.i-fdot{
+  width:7px; height:7px; border-radius:99px; background:var(--i-c500);
+  flex:none; outline:4px solid var(--i-c50);
+}
+.i-bandacts{ margin-left:auto; display:flex; align-items:center; gap:26px; }
+.i-ba{ display:flex; align-items:baseline; gap:9px; }
+.i-ba .i-n{ font-size:21px; font-weight:400; color:var(--i-c600); font-variant-numeric:tabular-nums; }
+.i-ba .i-l{ font-size:var(--i-t-meta); color:var(--i-ink); }
+.i-ba .i-l small{ display:block; font-size:var(--i-t-micro); color:var(--i-mute); }
+
+/* ================== 5 · metrics + bars ================== */
+/* Separation is a rule and space, never a card. Value first, label above it
+   and quieter — the number is what the row is for. */
+.i-stats{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  border-top:1px solid var(--i-rule); border-bottom:1px solid var(--i-rule);
+  margin:0 0 26px;
+}
+/* Padding on both sides, not just the right.
+   These had `padding-left: 0`, which is correct for the first card — it
+   bleeds to the page gutter like every row in this console — and wrong for
+   every other one, whose text then sat flush against the divider line of the
+   card before it. The separator needs air on both sides or it reads as an
+   underline on the text rather than a boundary between two things. */
+.i-stat{
+  padding:var(--i-s5) var(--i-s6);
+  border-right:1px solid var(--i-rule);
+}
+.i-stat:first-child{ padding-left:0; }
+.i-stat:last-child{ border-right:0; padding-right:0; }
+.i-stat .i-k{ font-size:var(--i-t-micro); color:var(--i-mute); margin-bottom:4px; }
+.i-stat .i-v{
+  font-size:25px; font-weight:400; letter-spacing:-.022em;
+  color:var(--i-ink); font-variant-numeric:tabular-nums; line-height:1.1;
+}
+.i-stat .i-v small{ font-size:15px; color:var(--i-mute); font-weight:400; }
+.i-stat .i-n{ margin-top:5px; font-size:var(--i-t-micro); color:var(--i-mute); }
+
+.i-cols{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
+  align-items:stretch;
+}
+.i-col > :last-child{ margin-bottom:0; }
+.i-col{
+  padding:var(--i-s5) var(--i-s6);
+  border-top:1px solid var(--i-rule); border-right:1px solid var(--i-rule);
+}
+.i-col:first-child{ padding-left:0; }
+.i-col:last-child{ border-right:0; padding-right:0; }
+.i-chead{ display:flex; align-items:baseline; gap:var(--i-s3); margin-bottom:var(--i-s4); }
+.i-chead h2{ margin:0; font-size:13px; font-weight:500; letter-spacing:-.006em; color:var(--i-ink); }
+.i-chead .i-meta{ margin-left:auto; font-size:var(--i-t-micro); color:var(--i-mute); }
+
+/* An inline bar row beats a pie: it is sortable, labelled, and reads at a
+   glance. The four dashboard pies each had a single 100% slice. */
+.i-barrow{ display:grid; grid-template-columns:minmax(0,120px) 1fr auto; align-items:center; gap:14px; padding:6px 0; }
+.i-barrow .i-bl{ font-size:var(--i-t-meta); color:var(--i-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.i-bartrack{ height:7px; border-radius:99px; background:var(--i-g100); overflow:hidden; }
+html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
+/* `display:block` is doing real work here.
+   The track is a grid item and gets blockified for free, but the fill is a
+   plain span inside it - inline, so height and width were both ignored and
+   every bar in the console rendered as an empty groove. The charts looked
+   like they had no data rather than like they were broken, which is why it
+   survived. */
+.i-barfill{
+  display:block; height:100%; border-radius:99px; background:var(--i-v500);
+  transition:width .35s cubic-bezier(.16,1,.3,1);
+}
+.i-barval{
+  text-align:right; font-size:var(--i-t-meta); color:var(--i-ink);
+  font-variant-numeric:tabular-nums; white-space:nowrap; min-width:56px;
+}
+
+/* ================== 6 · table ================== */
+/* The list template renders 54 screens, so this is the highest-leverage
+   component in the product. No container, no card, no border box: rows bleed
+   to the page gutter and the rules between them do the separating. */
+/* One toolbar row, not two.
+   Search, the filter chips and the page's actions were spread over the page
+   header and a strip beneath it, which left search boxed into 260px at the
+   far right - the narrowest control on a screen whose whole job is finding a
+   row among two thousand. Here it leads the row, grows into whatever space
+   is going, and the actions sit directly against it. */
+.i-strip{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  padding:4px 0 12px; margin-bottom:2px;
+}
+/* Search + actions is one group and leads the row; the filter chips drop to
+   their own line beneath. `.i-right` keeps its name because nine screens use
+   it, but it is no longer pushed right - the search was being squeezed to its
+   260px floor at the far edge of a 1,400px screen. */
+/* The primary action is anchored, and everything else moves around it.
+   
+   Export, Import CSV, Sync Now, Bulk Ops, Graph, Enrol this browser — the
+   secondary tools differ per screen, so with the whole group packed together
+   the Add button landed at a different x on every one. Switching tabs then
+   means re-finding the button you press most, every time, which is the exact
+   cost Fitts's law puts a number on.
+   
+   So `.i-tools` takes the remaining width and the primary is pushed to its
+   far end. The button now sits at the page gutter on every screen; the
+   secondary tools reflow leftward and the search absorbs the slack. A screen
+   with no primary leaves that spot empty rather than letting an unrelated
+   button inherit the muscle memory.
+   
+   `display:contents` on `.i-right` is what lets one rule cover both layouts:
+   nine screens nest search and tools inside it, the shared template has them
+   as siblings, and this flattens the first into the second without touching
+   either file. */
+.i-strip .i-right{ display:contents; }
+.i-strip .i-search{ order:-1; }
+.i-strip .i-tools{
+  display:flex; align-items:center; gap:6px;
+  flex:1 1 auto; min-width:0;
+}
+.i-strip .i-tools > .i-btn.i-primary:last-child,
+.i-strip .i-tools > .i-anchor{ margin-left:auto; }
+.i-strip .i-ftabs{ order:1; flex-basis:100%; }
+/* a screen with no chips keeps everything on one line */
+.i-strip .i-ftabs:only-child{ flex-basis:auto; }
+.i-search{
+  display:flex; align-items:center; gap:8px; height:34px; padding:0 11px;
+  flex:0 1 420px; min-width:200px;
+  border:1px solid var(--i-rule-strong);
+  border-radius:var(--i-r-ctl); background:var(--i-canvas);
+  transition:border-color .16s ease;
+}
+.i-search:hover{ border-color:var(--i-dim); }
+/* the actions butt up against the search rather than floating away from it */
+.i-tools{ display:flex; align-items:center; gap:6px; flex:none; }
+.i-search svg{ width:14px; height:14px; color:var(--i-mute); flex:none; }
+.i-search input{
+  border:0; outline:0; background:transparent; flex:1; min-width:0;
+  font:inherit; font-size:var(--i-t-meta); color:var(--i-ink);
+}
+.i-search input::placeholder{ color:var(--i-mute); }
+.i-search:focus-within{ border-color:var(--i-v600); box-shadow:0 0 0 3px var(--i-v50); }
+.i-search input::-webkit-search-cancel-button{ -webkit-appearance:none; }
+.i-sclear{
+  flex:none; display:grid; place-items:center; width:19px; height:19px;
+  border:0; border-radius:50%; background:transparent;
+  color:var(--i-mute); font-size:10px; cursor:pointer;
+}
+.i-sclear:hover{ background:var(--i-tint); color:var(--i-ink); }
+
+.i-table{ width:100%; border-collapse:collapse; }
+.i-table th{
+  text-align:left; padding:9px 14px; font-size:var(--i-t-micro); font-weight:500;
+  letter-spacing:var(--i-tr-micro); text-transform:uppercase;
+  /* --i-mute measures 3.00:1 on white; at 10.5px uppercase that fails. --i-dim is 6.29:1 */
+  color:var(--i-dim);
+  border-bottom:1px solid var(--i-rule-strong); white-space:nowrap;
+}
+.i-table th:first-child,.i-table td:first-child{ padding-left:0; }
+.i-table th:last-child,.i-table td:last-child{ padding-right:0; }
+.i-table td{
+  padding:0 14px; height:var(--i-row-h); vertical-align:middle;
+  border-bottom:1px solid var(--i-rule); font-size:13px; color:var(--i-ink);
+  /* Data cells do not wrap. A machine-generated name broken over three lines
+     is unreadable and makes every row a different height; the table scrolls
+     horizontally inside .table-responsive instead. */
+  white-space:nowrap;
+}
+.i-table td.i-wrap{ white-space:normal; }
+.i-table tbody tr:last-child td{ border-bottom:0; }
+.i-table tbody tr:hover td{ background:var(--i-tint); }
+.i-table tbody tr[aria-selected="true"] td{ background:var(--i-v50); }
+/* a sortable header says so before you click it, not after */
+.i-table th[aria-sort]{ cursor:pointer; user-select:none; }
+.i-table th[aria-sort]:hover{ color:var(--i-ink); }
+.i-table th[aria-sort] .i-sarr{ opacity:0; margin-left:5px; }
+.i-table th[aria-sort]:hover .i-sarr,
+.i-table th[aria-sort="ascending"] .i-sarr,
+.i-table th[aria-sort="descending"] .i-sarr{ opacity:1; }
+.i-table th[aria-sort="descending"] .i-sarr{ transform:rotate(180deg); }
+.i-table input[type=checkbox]{ width:14px; height:14px; accent-color:var(--i-v600); }
+/* row actions appear on hover or focus; they do not sit there competing with
+   the data for all 2,000 rows */
+.i-rowbtn{
+  opacity:0; display:inline-flex; align-items:center; justify-content:center;
+  width:28px; height:28px; border:0; border-radius:var(--i-r-ctl);
+  background:transparent; color:var(--i-mute); cursor:pointer;
+}
+.i-table tr:hover .i-rowbtn,
+.i-rowbtn:focus-visible{ opacity:1; }
+.i-rowbtn:hover{ background:var(--i-tint); color:var(--i-ink); }
+
+.i-tfoot{
+  display:flex; align-items:center; gap:12px;
+  padding:14px 0; border-top:1px solid var(--i-rule); font-size:var(--i-t-meta); color:var(--i-mute);
+}
+.i-tfoot .i-right{ margin-left:auto; display:flex; align-items:center; gap:6px; }
+.i-pbtn{
+  width:28px; height:28px; display:inline-grid; place-items:center;
+  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-ctl);
+  background:transparent; color:var(--i-dim); cursor:pointer;
+}
+.i-pbtn:hover:not(:disabled){ background:var(--i-tint); color:var(--i-ink); }
+.i-pbtn:disabled{ opacity:.35; cursor:default; }
+
+/* A selection bar replaces a permanently armed Delete button in the toolbar.
+   Destructive actions only exist once something is selected. */
+.i-selnote{
+  display:flex; align-items:center; gap:12px;
+  padding:9px 14px; margin:0 calc(var(--i-gut) * -1); padding-left:var(--i-gut);
+  background:var(--i-v50); color:var(--i-v700); font-size:var(--i-t-meta);
+}
+.i-selnote .i-right{ margin-left:auto; display:flex; gap:8px; }
+
+/* An empty list and a filtered-empty list are different situations and say
+   different things. 54 screens currently share one string. */
+.i-zero{ padding:72px 0; text-align:center; }
+.i-zero .i-zi{
+  width:38px; height:38px; margin:0 auto 16px; display:grid; place-items:center;
+  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-float); color:var(--i-mute);
+}
+.i-zero h3{ margin:0 0 6px; font-size:15.5px; font-weight:450; letter-spacing:-.012em; color:var(--i-ink); }
+.i-zero p{ margin:0 auto; max-width:390px; font-size:var(--i-t-meta); color:var(--i-mute); }
+.i-zero .i-za{ margin-top:18px; }
+
+/* ================== 7 · side panel ================== */
+/* Replaces the slide-in card. A sheet is a floating layer, so it is the one
+   place that earns a shadow. */
+.i-scrim{
+  position:fixed; inset:0; z-index:60; background:rgba(20,20,24,.42);
+  opacity:0; animation:i-fade .16s forwards;
+}
+@keyframes i-fade{ to{ opacity:1 } }
+.i-sheet{
+  position:fixed; top:0; right:0; bottom:0; z-index:61;
+  width:min(560px,100vw); display:flex; flex-direction:column;
+  background:var(--i-canvas); box-shadow:var(--i-float-lg);
+  transform:translateX(12px); opacity:0; animation:i-slide .2s cubic-bezier(.2,.7,.3,1) forwards;
+}
+@keyframes i-slide{ to{ transform:none; opacity:1 } }
+.i-sheeth{
+  flex:none; display:flex; align-items:flex-start; gap:12px;
+  padding:20px 22px 16px; border-bottom:1px solid var(--i-rule);
+}
+.i-sheeth h2{ margin:0; font-size:17px; font-weight:450; letter-spacing:-.016em; }
+.i-sheeth .i-sub{ margin:4px 0 0; font-size:var(--i-t-meta); color:var(--i-mute); }
+.i-sheetb{ flex:1; min-height:0; overflow-y:auto; padding:20px 22px 28px; }
+/* The sheet's Save and Cancel are bottom-right, which is the badge's corner;
+   without this the primary action of every add and edit form is unclickable
+   on the deployed site. */
+.i-sheetf{
+  margin-bottom: var(--i-badge-h, 0px);
+  flex:none; display:flex; align-items:center; gap:8px;
+  padding:14px 22px; border-top:1px solid var(--i-rule); background:var(--i-canvas);
+}
+.i-sheetf .i-right{ margin-left:auto; display:flex; gap:8px; }
+.i-x{
+  margin-left:auto; width:28px; height:28px; flex:none;
+  display:grid; place-items:center; border:0; border-radius:var(--i-r-ctl);
+  background:transparent; color:var(--i-mute); cursor:pointer;
+}
+.i-x:hover{ background:var(--i-tint); color:var(--i-ink); }
+
+/* ================== 8 · modal + toast ================== */
+/* A confirm dialog names the thing. All 39 delete modals currently say
+   "Are You Sure?" over an 80px red glyph and name nothing. */
+.i-modal{
+  position:fixed; z-index:71; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:min(440px,calc(100vw - 32px));
+  background:var(--i-canvas); border-radius:var(--i-r-float); box-shadow:var(--i-float-lg);
+}
+.i-modalb{ padding:24px 24px 4px; }
+.i-modalb h2{ margin:0 0 7px; font-size:16px; font-weight:450; letter-spacing:-.012em; }
+.i-modalb p{ margin:0; font-size:var(--i-t-meta); color:var(--i-dim); }
+.i-modalb .i-named{ color:var(--i-ink); font-weight:500; }
+.i-modalf{ display:flex; justify-content:flex-end; gap:8px; padding:18px 24px 20px; }
+
+.i-toasts{
+  position:fixed; z-index:80; right:18px;
+  bottom:calc(18px + var(--i-badge-h, 0px));
+  display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+}
+.i-toast{
+  display:flex; align-items:center; gap:10px;
+  padding:11px 14px; min-width:260px; max-width:400px;
+  border-radius:var(--i-r-float); background:var(--i-canvas);
+  box-shadow:var(--i-float); font-size:var(--i-t-meta); color:var(--i-ink);
+}
+.i-toast .i-td{ width:7px; height:7px; border-radius:99px; flex:none; background:var(--i-ok); }
+.i-toast.i-bad .i-td{ background:var(--i-bad); }
+
+/* ================== 9 · form ================== */
+/* 44 forms ship with zero field-level help. A hint slot is built into the
+   field so adding one is a line of Blade, not a layout decision. */
+.i-formsec{ margin:0 0 var(--i-s6); }
+.i-formsec > h3{
+  margin:0 0 3px; font-size:13px; font-weight:500; letter-spacing:-.006em; color:var(--i-ink);
+}
+.i-formsec > .i-secsub{ margin:0 0 16px; font-size:12px; color:var(--i-mute); }
+.i-frow{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:var(--i-s3) var(--i-s4); margin-bottom:var(--i-s3);
+}
+/* consecutive switches read as one group rather than a loose pile */
+.i-frow > .i-field > .i-sw{ margin-top:2px; }
+.i-field{ min-width:0; }
+.i-field > label{
+  display:block; margin-bottom:5px; font-size:var(--i-t-meta); font-weight:450; color:var(--i-dim);
+}
+.i-field > label .i-req{ color:var(--i-bad); margin-left:2px; }
+.i-hint{ margin:5px 0 0; font-size:var(--i-t-micro); color:var(--i-mute); }
+.i-err{ margin:5px 0 0; font-size:var(--i-t-micro); color:var(--i-bad); }
+
+.i-ctl{
+  width:100%; height:32px; padding:0 10px;
+  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-ctl);
+  background:var(--i-canvas); color:var(--i-ink);
+  font:inherit; font-size:var(--i-t-meta);
+}
+textarea.i-ctl{ height:auto; min-height:76px; padding:7px 10px; resize:vertical; }
+select.i-ctl{
+  appearance:none; padding-right:28px; cursor:pointer;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239394a1' stroke-width='2' stroke-linecap='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat:no-repeat; background-position:right 9px center; background-size:14px;
+}
+.i-ctl::placeholder{ color:var(--i-mute); }
+.i-ctl:focus{ outline:none; border-color:var(--i-v600); box-shadow:0 0 0 3px var(--i-v50); }
+.i-ctl:disabled{ background:var(--i-tint); color:var(--i-mute); cursor:not-allowed; }
+.i-field.is-invalid .i-ctl{ border-color:var(--i-bad); }
+.i-duo{ display:flex; gap:0; }
+.i-duo > .i-ctl:first-child{ border-top-right-radius:0; border-bottom-right-radius:0; flex:0 0 118px; }
+.i-duo > .i-ctl:last-child{ border-top-left-radius:0; border-bottom-left-radius:0; margin-left:-1px; flex:1; }
+
+/* A toggle reads its own state; a checkbox labelled "Enable" does not.
+   `.i-field > label` sets display:block at higher specificity, so a switch
+   placed inside a field collapsed - the flex row died, the track rendered as
+   an inline span where width and height are ignored, and the absolutely
+   positioned input escaped to the page. Both selectors are listed so the
+   switch wins wherever it is used. */
+.i-sw,
+.i-field > label.i-sw{
+  display:inline-flex; align-items:center; gap:9px;
+  cursor:pointer; font-size:var(--i-t-meta); font-weight:400;
+  color:var(--i-ink); margin-bottom:0;
+  /* contains the visually hidden input */
+  position:relative;
+  /* the label is the hit area, so give it a real one */
+  min-height:28px; padding:3px 0;
+}
+.i-sw input{
+  position:absolute; opacity:0; width:0; height:0; margin:0; pointer-events:none;
+}
+.i-sw .i-track{
+  /* block, never inline: an inline span ignores width and height entirely */
+  display:block; width:32px; height:18px; flex:none;
+  border-radius:99px; background:var(--i-g150);
+  position:relative; transition:background-color .15s;
+}
+html[data-i-theme="dark"] .i-sw .i-track{ background:rgba(255,255,255,.16); }
+.i-sw .i-track::after{
+  content:""; position:absolute; top:2px; left:2px; width:14px; height:14px;
+  border-radius:99px; background:#fff; transition:transform .15s;
+  box-shadow:0 1px 2px rgba(0,0,0,.2);
+}
+.i-sw input:checked + .i-track{ background:var(--i-v600); }
+.i-sw input:checked + .i-track::after{ transform:translateX(14px); }
+.i-sw input:focus-visible + .i-track{ outline:2px solid var(--i-v600); outline-offset:2px; }
+
+/* ================== 10 · controls + status ================== */
+/* One button scale. Production ships five systems at four radii, the tallest
+   25px, which is under every pointer-target guideline. */
+.i-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  min-height:32px; padding:0 13px; border-radius:var(--i-r-ctl);
+  border:1px solid var(--i-rule-strong); background:var(--i-canvas); color:var(--i-ink);
+  font:inherit; font-size:var(--i-t-meta); font-weight:450; line-height:1;
+  cursor:pointer; white-space:nowrap;
+  transition:background-color .12s,border-color .12s,color .12s;
+}
+.i-btn:hover{ background:var(--i-tint); }
+.i-btn svg{ width:14px; height:14px; flex:none; }
+.i-btn:disabled{ opacity:.45; cursor:not-allowed; }
+/* exactly one per screen */
+.i-btn.i-primary{
+  background:var(--i-primary); border-color:var(--i-primary); color:var(--i-primary-ink); font-weight:500;
+}
+.i-btn.i-primary:hover{ background:var(--i-v700); border-color:var(--i-v700); }
+html[data-i-theme="dark"] .i-btn.i-primary:hover{ filter:brightness(1.08); background:var(--i-primary); }
+/* destructive is text until you commit; the fill lives on the confirm step */
+.i-btn.i-danger{ border-color:transparent; background:transparent; color:var(--i-bad); }
+.i-btn.i-danger:hover{ background:var(--i-bad-bg); }
+.i-btn.i-danger-solid{ background:var(--i-bad); border-color:var(--i-bad); color:#fff; font-weight:500; }
+.i-btn.i-danger-solid:hover{ filter:brightness(.92); background:var(--i-bad); }
+.i-btn.i-quiet{ border-color:transparent; background:transparent; color:var(--i-dim); }
+.i-btn.i-quiet:hover{ background:var(--i-tint); color:var(--i-ink); }
+.i-btn.i-sm{ min-height:28px; padding:0 10px; font-size:12px; }
+
+/* filter chips: visible, removable state. A filter you cannot see is a
+   support ticket about missing data. */
+.i-ftabs{ display:flex; gap:6px; overflow-x:auto; -ms-overflow-style:none; }
+.i-ftabs::-webkit-scrollbar{ display:none; }
+.i-chip{
+  display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 10px;
+  border:1px solid var(--i-rule-strong); border-radius:99px;
+  background:transparent; color:var(--i-dim);
+  font:inherit; font-size:12px; cursor:pointer; white-space:nowrap;
+}
+.i-chip:hover{ background:var(--i-tint); color:var(--i-ink); }
+.i-chip[aria-pressed="true"],.i-chip.is-on{
+  background:var(--i-v50); border-color:transparent; color:var(--i-v700); font-weight:500;
+}
+.i-chip svg{ width:13px; height:13px; flex:none; }
+.i-chip .i-n{ color:var(--i-mute); font-variant-numeric:tabular-nums; }
+.i-chip[aria-pressed="true"] .i-n{ color:var(--i-v700); }
+
+/* Colour marks exceptions, not states. Active, Approved, Passed, Enrolled are
+   the expected case and carry no pill — in a 40-row list that is the
+   difference between 15 coloured marks and 80. */
+.i-pill{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:var(--i-t-meta); color:var(--i-dim);
+}
+.i-pill.i-att,.i-pill.i-bad{
+  padding:3px 9px; border-radius:99px; font-size:var(--i-t-micro); font-weight:450;
+}
+.i-pill.i-att{ background:var(--i-c50); color:var(--i-c600); border:1px solid var(--i-c-line); }
+.i-pill.i-bad{ background:var(--i-bad-bg); color:var(--i-bad); border:1px solid transparent; }
+.i-dot{ width:6px; height:6px; border-radius:99px; flex:none; background:var(--i-mute); }
+.i-dot.i-ok{ background:var(--i-ok); }
+.i-dot.i-att{ background:var(--i-c500); }
+.i-dot.i-bad{ background:var(--i-bad); }
+
+.i-menu{
+  position:absolute; z-index:70; min-width:188px; padding:5px;
+  background:var(--i-canvas); border-radius:var(--i-r-float); box-shadow:var(--i-float);
+}
+.i-menu button{
+  display:flex; align-items:center; gap:9px; width:100%;
+  padding:7px 9px; border:0; border-radius:5px; background:transparent;
+  color:var(--i-ink); font:inherit; font-size:var(--i-t-meta); text-align:left; cursor:pointer;
+}
+.i-menu button:hover{ background:var(--i-tint); }
+.i-menu button.i-danger{ color:var(--i-bad); }
+.i-menu hr{ margin:5px 0; border:0; border-top:1px solid var(--i-rule); }
+
+/* ================== responsive ================== */
+@media (max-width:1100px){ :root{ --i-gut:22px; } }
+@media (max-width:860px){
+  .i-app{ grid-template-columns:minmax(0,1fr); }
+  .i-rail{
+    position:fixed; z-index:50; inset:0 auto 0 0; width:var(--i-rail-w);
+    transform:translateX(-100%); transition:transform .2s;
+  }
+  .i-app.i-navopen .i-rail{ transform:none; }
+  :root{ --i-gut:16px; }
+  .i-stat{ border-right:0; border-bottom:1px solid var(--i-rule); }
+  .i-col{ border-right:0; padding-right:0; }
+}
+@media (prefers-reduced-motion:reduce){
+  .i-app *{ transition:none !important; animation-duration:.01ms !important; }
+}
+
+/* ================== 14 · dashboard analytics ================== */
+/* Four reports, one period control, no boxes.
+   Production stacks four pie charts here, each of which in the captured
+   tenant was a single 100% slice. A labelled bar reads at a glance, sorts by
+   definition, and still works when there is one data point. */
+.i-analytics{ margin:var(--i-s7) 0 0; }
+.i-ahead{
+  display:flex; align-items:center; gap:var(--i-s4);
+  padding-bottom:var(--i-s3); border-bottom:1px solid var(--i-rule);
+}
+.i-ahead h2{
+  margin:0; font-size:var(--i-t-section); font-weight:450;
+  letter-spacing:var(--i-tr-section); color:var(--i-ink);
+}
+
+/* the period control: a segmented switch, not three loose buttons */
+.i-seg{
+  margin-left:auto; display:inline-flex; padding:2px; gap:2px;
+  background:var(--i-tint); border-radius:var(--i-r-ctl);
+}
+.i-segb{
+  border:0; background:transparent; border-radius:4px;
+  padding:4px 11px; font:inherit; font-size:var(--i-t-micro);
+  color:var(--i-dim); cursor:pointer; transition:color .14s ease, background .14s ease;
+}
+.i-segb:hover{ color:var(--i-ink); }
+.i-segb.is-on{ background:var(--i-canvas); color:var(--i-ink); font-weight:500; }
+html[data-i-theme="dark"] .i-segb.is-on{ background:var(--i-raise,#232329); }
+.i-segb:focus-visible{ outline:2px solid var(--i-v600); outline-offset:1px; }
+
+.i-agrid{
+  display:grid; gap:var(--i-s6) var(--i-s7);
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  padding-top:var(--i-s5);
+}
+@media (max-width:991.98px){ .i-agrid{ grid-template-columns:1fr; } }
+.i-apanel{ min-width:0; }
+/* A grid row that wraps onto a second line must not start under the divider */
+.i-cols .i-barrow:last-child{ padding-bottom:0; }
+.i-apanel h3{
+  margin:0; font-size:var(--i-t-body); font-weight:500;
+  letter-spacing:var(--i-tr-body); color:var(--i-ink);
+}
+.i-anote{
+  margin:0; padding:var(--i-s5) 0; font-size:var(--i-t-meta); color:var(--i-mute);
+}
+
+/* seat meter on the subscription stat */
+.i-seatbar{
+  height:4px; margin:7px 0 6px; border-radius:2px;
+  background:var(--i-tint); overflow:hidden;
+}
+.i-seatbar > span{
+  display:block; height:100%; border-radius:2px;
+  background:var(--i-v500); transition:width .3s cubic-bezier(.16,1,.3,1);
+}
+/* running out of seats is an exception, so it takes the attention colour */
+.i-seatbar > span.is-tight{ background:var(--i-c600); }
+.i-stat .i-vdate{ font-size:19px; letter-spacing:var(--i-tr-section); }
+.i-alink{ color:var(--i-v700); text-decoration:none; margin-left:4px; }
+.i-alink:hover{ text-decoration:underline; }
+
+/* ================== 15 · definition list ================== */
+/* Label above value, not a two-column table. A device's UUID is 36 characters
+   and a fixed label column either wraps it or squeezes the label. */
+.i-deflist{ margin:0; display:grid; gap:var(--i-s3) var(--i-s5); grid-template-columns:repeat(2,minmax(0,1fr)); }
+.i-deflist > div{ min-width:0; }
+.i-deflist dt{
+  margin:0 0 1px; font-size:var(--i-t-micro); font-weight:400;
+  letter-spacing:var(--i-tr-micro); text-transform:uppercase; color:var(--i-mute);
+}
+.i-deflist dd{
+  margin:0; font-size:var(--i-t-meta); color:var(--i-ink);
+  overflow-wrap:anywhere;
+}
+@media (max-width:575.98px){ .i-deflist{ grid-template-columns:1fr; } }
+
+/* ================== 16 · bulk operations (CSV) ================== */
+.i-csvex{
+  width:100%; margin:10px 0 4px; border-collapse:collapse;
+  font-size:var(--i-t-micro); font-family:var(--i-mono);
+}
+.i-csvex th,.i-csvex td{
+  border:1px solid var(--i-rule); padding:5px 8px; text-align:left; white-space:nowrap;
+}
+.i-csvex th{ background:var(--i-tint); color:var(--i-dim); font-weight:500; }
+.i-csvex td{ color:var(--i-mute); }
+
+.i-filepick{
+  display:flex; align-items:center; gap:9px; padding:11px 14px; cursor:pointer;
+  border:1px dashed var(--i-rule-strong); border-radius:var(--i-r-ctl);
+  background:var(--i-tint); font-size:var(--i-t-meta); color:var(--i-dim);
+}
+.i-filepick:hover{ border-color:var(--i-v600); color:var(--i-ink); }
+.i-filepick input{ display:none; }
+.i-err{ font-size:var(--i-t-meta); color:var(--i-bad); margin:0; }
+
+/* the dry run */
+.i-planlist{ max-height:300px; overflow:auto; border-top:1px solid var(--i-rule); }
+.i-planrow{
+  display:grid; grid-template-columns:76px minmax(0,1fr) minmax(0,1.4fr);
+  gap:10px; align-items:baseline;
+  padding:7px 2px; border-bottom:1px solid var(--i-rule); font-size:var(--i-t-meta);
+}
+.i-planverb{
+  font-size:10px; letter-spacing:var(--i-tr-micro); text-transform:uppercase;
+  color:var(--i-v700);
+}
+.i-planrow.is-skip .i-planverb{ color:var(--i-mute); }
+.i-planname{ font-family:var(--i-mono); overflow:hidden; text-overflow:ellipsis; }
+.i-planwhy{ color:var(--i-mute); }
+.i-planrow.is-skip .i-planname{ color:var(--i-mute); }
+
+/* ================== 16b · graph view ================== */
+/* Proportional bars rather than a point cloud: a bar has a magnitude you can
+   compare at a glance and a label you can read, which is the whole job. */
+.i-graphview{ padding-top:var(--i-s3); }
+.i-graphbar{
+  display:flex; align-items:center; gap:var(--i-s3); flex-wrap:wrap;
+  padding-bottom:var(--i-s3);
+}
+.i-graphbar .i-meta{ margin-left:auto; }
+
+.i-legend{
+  display:flex; gap:var(--i-s4); flex-wrap:wrap;
+  padding:0 0 var(--i-s4); font-size:var(--i-t-micro); color:var(--i-dim);
+}
+.i-legenditem{ display:inline-flex; align-items:center; gap:6px; }
+.i-legendswatch{ width:9px; height:9px; border-radius:2px; flex:none; }
+
+.i-gbars{ border-top:1px solid var(--i-rule); }
+.i-gbar{ border-bottom:1px solid var(--i-rule); }
+.i-gbarhead{
+  display:grid; align-items:center; gap:var(--i-s4);
+  grid-template-columns:minmax(0,170px) 1fr auto 46px 14px;
+  width:100%; padding:11px 2px; border:0; background:transparent;
+  font:inherit; text-align:left; color:var(--i-ink); cursor:pointer;
+}
+.i-gbarhead:hover{ background:var(--i-tint); }
+.i-gbarhead:focus-visible{ outline:2px solid var(--i-v600); outline-offset:-2px; }
+.i-gbarlabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--i-t-body); }
+.i-gbartrack{ height:16px; border-radius:3px; background:var(--i-g100); overflow:hidden; }
+html[data-i-theme="dark"] .i-gbartrack{ background:rgba(255,255,255,.07); }
+.i-gbarfill{
+  display:flex; height:100%; border-radius:3px; background:var(--i-v500);
+  transition:width .35s cubic-bezier(.16,1,.3,1); overflow:hidden; min-width:2px;
+}
+.i-gbarseg{ display:block; height:100%; min-width:1px; }
+.i-gbarn{
+  font-size:var(--i-t-body); font-variant-numeric:tabular-nums; text-align:right;
+}
+.i-gbarpct{
+  font-size:var(--i-t-micro); color:var(--i-mute);
+  font-variant-numeric:tabular-nums; text-align:right;
+}
+.i-gbarchev{ font-size:9px; color:var(--i-mute); transition:transform .18s ease; }
+.i-gbarchev.is-open{ transform:rotate(180deg); }
+
+/* the exact split, spelled out, so the bar does not have to be hovered */
+.i-gbarparts{
+  display:flex; gap:var(--i-s4); flex-wrap:wrap;
+  padding:0 2px 10px calc(170px + var(--i-s4));
+  font-size:var(--i-t-micro); color:var(--i-mute);
+  font-variant-numeric:tabular-nums;
+}
+
+.i-gmembers{
+  margin:0; padding:2px 2px 12px calc(170px + var(--i-s4));
+  list-style:none; columns:2; column-gap:var(--i-s6);
+}
+@media (max-width:767.98px){
+  .i-gbarhead{ grid-template-columns:minmax(0,1fr) auto 42px; }
+  .i-gbartrack,.i-gbarchev{ display:none; }
+  .i-gmembers,.i-gbarparts{ padding-left:2px; columns:1; }
+}
+.i-gmembers li{
+  display:flex; gap:9px; align-items:baseline; break-inside:avoid;
+  padding:3px 0; font-size:var(--i-t-meta);
+}
+.i-gmname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.i-gmsplit{ margin-left:auto; font-size:var(--i-t-micro); color:var(--i-mute); }
+.i-gmmore{ color:var(--i-mute); font-size:var(--i-t-micro); }
+
+/* ================== 17 · MFA state (admin side) ================== */
+.i-mfastate{
+  display:flex; align-items:flex-start; gap:11px;
+  padding:var(--i-s3) var(--i-s4); border-radius:var(--i-r-ctl);
+  background:var(--i-tint);
+}
+.i-mfastate > i{ margin-top:2px; font-size:14px; }
+.i-mfastate.is-on > i{ color:var(--i-ok); }
+.i-mfastate.is-off > i{ color:var(--i-c600); }
+.i-mfastate span{ display:flex; flex-direction:column; min-width:0; }
+.i-mfastate strong{ font-size:var(--i-t-body); font-weight:500; }
+.i-mfastate small{ font-size:var(--i-t-meta); color:var(--i-mute); }
+
+/* ================== 18 · fleet health and activity ================== */
+/* A failing check is an exception, so it takes the attention colour. A bar
+   that is merely large is not a problem and stays violet. */
+.i-barfill.is-bad{ background:var(--i-c600); }
+.i-pcts{
+  display:block; font-size:var(--i-t-micro); color:var(--i-mute);
+  font-weight:400; line-height:1.2;
+}
+.i-curtag{
+  margin-left:6px; font-family:var(--i-sans); font-size:10px;
+  letter-spacing:var(--i-tr-micro); text-transform:uppercase; color:var(--i-ok);
+}
+
+/* the activity feed */
+.i-feed{ margin:0; padding:0; list-style:none; }
+.i-feed li{
+  display:flex; align-items:baseline; gap:10px;
+  padding:9px 0; border-bottom:1px solid var(--i-rule);
+}
+.i-feed li:last-child{ border-bottom:0; }
+.i-feeddot{
+  width:6px; height:6px; border-radius:50%; flex:none;
+  background:var(--i-mute); transform:translateY(-1px);
+}
+.i-feeddot.is-warning{ background:var(--i-c600); }
+.i-feeddot.is-critical{ background:var(--i-bad); }
+.i-feedtext{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.i-feedwhat{
+  font-size:var(--i-t-meta); color:var(--i-ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.i-feedtype{ font-size:var(--i-t-micro); color:var(--i-mute); }
+.i-feedwhen{
+  flex:none; font-size:var(--i-t-micro); color:var(--i-mute);
+  font-variant-numeric:tabular-nums;
+}
+/* Panel labels are phrases ("Operating system current"), not usernames, so
+   they need more room than the 120px a name column wants. */
+.i-apanel .i-barrow{ grid-template-columns:minmax(0,172px) 1fr auto; }
+@media (max-width:1399.98px){
+  .i-apanel .i-barrow{ grid-template-columns:minmax(0,142px) 1fr auto; }
+}
+
+/* ================== 19 · line chart ================== */
+/* Unboxed like everything else: gridlines and space, no frame, no shadow. */
+.i-lc{ margin:0; }
+.i-lclegend{ display:flex; gap:var(--i-s4); flex-wrap:wrap; padding-bottom:var(--i-s2); }
+.i-lcsvg{ display:block; width:100%; height:auto; overflow:visible; }
+.i-lcsvg:focus-visible{ outline:2px solid var(--i-v600); outline-offset:3px; border-radius:4px; }
+.i-lcgrid line{ stroke:var(--i-rule); stroke-width:1; }
+.i-lcaxis text{
+  font-family:var(--i-sans); font-size:10px; fill:var(--i-mute);
+  font-variant-numeric:tabular-nums;
+}
+.i-lcline{ fill:none; stroke-width:1.75; stroke-linejoin:round; stroke-linecap:round; }
+.i-lcarea{ opacity:.09; }
+.i-lcguide{ stroke:var(--i-dim); stroke-width:1; stroke-dasharray:3 3; }
+.i-lcdot{ stroke:var(--i-canvas); stroke-width:2; }
+
+/* The readout sits under the chart rather than floating over it: a tooltip
+   that follows the cursor covers the very points you are comparing. */
+.i-lcread{
+  display:flex; gap:var(--i-s4); flex-wrap:wrap; align-items:baseline;
+  margin:var(--i-s2) 0 0; min-height:19px;
+  font-size:var(--i-t-micro); color:var(--i-mute); font-variant-numeric:tabular-nums;
+}
+.i-lcread strong{ color:var(--i-ink); font-weight:500; }
+.i-lcread b{ color:var(--i-ink); font-weight:500; }
+.i-lcread.is-idle{ color:var(--i-mute); opacity:.75; }
+/* Two charts across the top of the period section, stacking on narrow. */
+.i-trends{
+  display:grid; gap:var(--i-s6) var(--i-s7);
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  padding-top:var(--i-s5);
+}
+@media (max-width:991.98px){ .i-trends{ grid-template-columns:1fr; } }
+
+/* ================== 20 · picker ================== */
+/* A native select is right for eight options and wrong for eight hundred.
+   This is what the long ones become: type to narrow, chips for what is in. */
+.i-pick{ position:relative; }
+.i-pickbox{
+  display:flex; flex-wrap:wrap; align-items:center; gap:5px;
+  min-height:34px; padding:4px 8px; cursor:text;
+  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-ctl);
+  background:var(--i-canvas); transition:border-color .16s ease;
+}
+.i-pickbox:hover{ border-color:var(--i-dim); }
+.i-pick.is-open .i-pickbox,
+.i-pickbox:focus-within{ border-color:var(--i-v600); box-shadow:0 0 0 3px var(--i-v50); }
+.i-pick.is-disabled .i-pickbox{ background:var(--i-tint); cursor:not-allowed; }
+.i-pickbox input{
+  flex:1; min-width:90px; border:0; outline:0; background:transparent;
+  font:inherit; font-size:var(--i-t-meta); color:var(--i-ink); padding:3px 0;
+}
+.i-pickbox input::placeholder{ color:var(--i-mute); }
+
+.i-pickchip{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:2px 4px 2px 8px; border-radius:99px;
+  background:var(--i-v50); color:var(--i-v700); font-size:var(--i-t-micro);
+}
+.i-pickx{
+  display:grid; place-items:center; width:15px; height:15px; border:0;
+  border-radius:50%; background:transparent; color:var(--i-v700);
+  font-size:9px; cursor:pointer;
+}
+.i-pickx:hover{ background:rgba(91,79,209,.16); }
+
+.i-pickpop{
+  position:absolute; top:calc(100% + 5px); left:0; right:0; z-index:70;
+  padding:4px; max-height:280px; overflow:auto;
+  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-float);
+  background:var(--i-canvas); box-shadow:var(--i-float-lg);
+}
+html[data-i-theme="dark"] .i-pickpop{ box-shadow:none; outline:1px solid rgba(255,255,255,.09); }
+.i-pickall{ padding:3px 4px 6px; border-bottom:1px solid var(--i-rule); margin-bottom:4px; }
+.i-pickrow{
+  display:flex; align-items:baseline; gap:9px; width:100%;
+  padding:7px 9px; border:0; border-radius:5px; background:transparent;
+  font:inherit; text-align:left; color:var(--i-ink); cursor:pointer;
+}
+.i-pickrow.is-active{ background:var(--i-v50); }
+.i-pickl{ font-size:var(--i-t-meta); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.i-pickh{
+  margin-left:auto; font-family:var(--i-mono); font-size:var(--i-t-micro);
+  color:var(--i-mute); flex:none;
+}
+.i-picknote{ margin:0; padding:9px; font-size:var(--i-t-meta); color:var(--i-mute); }
+.i-linkbtn{
+  border:0; background:none; padding:0; font:inherit; font-size:inherit;
+  color:var(--i-v700); text-decoration:underline; cursor:pointer;
+}
+/* "Create …" sits apart from the matches: it is a different kind of action. */
+.i-pickcreate{
+  border-top:1px solid var(--i-rule); margin-top:4px; border-radius:0 0 5px 5px;
+  color:var(--i-v700);
+}
+.i-pickcreate i{ font-size:10px; }
+.i-pickcreate .i-pickl{ color:var(--i-v700); }
+/* A sheet opened from inside a sheet sits above it, with its own scrim. */
+.i-scrim.is-nested{ z-index:74; }
+.i-sheet.is-nested{ z-index:75; }
+
+/* ================== 21 · location plot ================== */
+.i-locpick{ margin-bottom:var(--i-s4); }
+.i-plot{
+  display:block; width:100%; height:auto; cursor:crosshair;
+  border:1px solid var(--i-rule); border-radius:var(--i-r-ctl);
+}
+.i-plotbg{ fill:var(--i-tint); }
+.i-plotgrid line{ stroke:var(--i-rule); stroke-width:1; }
+.i-plotequator{ stroke:var(--i-rule-strong); stroke-width:1; stroke-dasharray:4 4; }
+.i-plotcity{ fill:var(--i-mute); }
+.i-plotring{ fill:var(--i-v600); fill-opacity:.16; stroke:var(--i-v600); stroke-width:1.5; }
+.i-plotpin{ fill:var(--i-v600); stroke:var(--i-canvas); stroke-width:1.5; }
+.i-plotlabel{ font-family:var(--i-sans); font-size:9px; fill:var(--i-mute); }
+/* the map */
+.i-map{
+  height:340px; margin-top:8px; border-radius:var(--i-r-ctl);
+  border:1px solid var(--i-rule-strong); overflow:hidden; z-index:0;
+}
+.i-map .leaflet-control-attribution{ font-size:10px; }
+/* Leaflet panes sit at z-index 400+ by default, which would ride over the
+   sheet they live inside. */
+.i-map .leaflet-pane,
+.i-map .leaflet-top,
+.i-map .leaflet-bottom{ z-index:1; }
+/* Our own pin: no image assets to lose in a bundle. */
+.i-mappin{ background:none; border:0; }
+.i-mappin span{
+  display:block; width:16px; height:16px; border-radius:50%;
+  background:var(--i-v600); border:3px solid #fff;
+  box-shadow:0 1px 4px rgba(20,20,30,.45); cursor:grab;
+}
+.i-mappin span:active{ cursor:grabbing; }
+/* A week of toggles reads as a column, not a row: seven switches side by side
+   are unreadable at any width this sheet has. */
+.i-days{ display:flex; flex-direction:column; gap:7px; }
+/* A time input is a fixed-width thing; letting it stretch across the sheet
+   leaves the value marooned at the left of an empty box. */
+.i-ctl[type="time"],
+.i-ctl[type="date"]{ width:auto; min-width:150px; font-variant-numeric:tabular-nums; }

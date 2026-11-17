@@ -1,0 +1,1421 @@
+/**
+ * Seed data.
+ *
+ * Scaled to the real numbers measured off the production `velto` tenant, so
+ * the demo behaves like a live console rather than a tidy mock: 1,820 users,
+ * 775 devices waiting on approval, lists long enough that pagination, search
+ * and bulk selection actually matter.
+ *
+ * Generated rather than hand-written — a 1,820-row literal would be
+ * unreviewable, and generated data lets us keep the distributions honest
+ * (most users enrolled, a few not; most devices approved, a long pending tail).
+ */
+
+const FIRST = ['Aarav','Priya','Marcus','Elena','Rohan','Sana','David','Mei','Omar','Laura','Vikram','Chloe','Daniel','Ananya','Peter','Nadia','Arjun','Grace','Tomas','Ishita','Samuel','Leena','Hassan','Clara','Rahul','Yuki','Felix','Divya','Noah','Zara','Imran','Beatriz','Karan','Anja','Joel','Meera','Victor','Tara','Luis','Kavya']
+const LAST  = ['Sharma','Nair','Hall','Petrova','Mehta','Qureshi','Chen','Lin','Farouk','Bianchi','Singh','Dubois','Okafor','Rao','Novak','Haddad','Kapoor','Mbeki','Varga','Desai','Olsen','Krishnan','Ali','Moreau','Gupta','Tanaka','Weber','Iyer','Andersen','Khan','Baig','Costa','Malhotra','Keller','Lindqvist','Pillai','Sokolov','Bose','Alvarez','Menon']
+const DEPTS = ['Engineering','Finance','Sales','Support','HR','Operations','Legal','Marketing','IT','Security']
+const OS    = ['Windows 11 23H2','Windows 11 24H2','Windows 10 22H2','macOS 15.1','macOS 14.6','Ubuntu 24.04','Ubuntu 22.04','Android 15','Android 14','iOS 18.1','iOS 17.6']
+const CITIES = [
+  ['Bengaluru','IN',12.97,77.59], ['Mumbai','IN',19.08,72.88], ['Pune','IN',18.52,73.86],
+  ['London','GB',51.51,-0.13], ['Frankfurt','DE',50.11,8.68], ['Singapore','SG',1.35,103.82],
+  ['New York','US',40.71,-74.01], ['Austin','US',30.27,-97.74], ['Dubai','AE',25.20,55.27],
+  ['Sydney','AU',-33.87,151.21]
+]
+
+/** Deterministic PRNG, so every visitor gets the same demo and bugs reproduce. */
+function rng (seed = 20260101) {
+  let s = seed >>> 0
+  return () => {
+    s ^= s << 13; s >>>= 0
+    s ^= s >> 17
+    s ^= s << 5;  s >>>= 0
+    return s / 4294967296
+  }
+}
+const r = rng()
+const pick = (arr) => arr[Math.floor(r() * arr.length)]
+const chance = (p) => r() < p
+const ago = (days) => new Date(Date.now() - days * 86400000).toISOString()
+
+function pad (n, w = 4) { return String(n).padStart(w, '0') }
+
+/* A UUID from the seeded PRNG rather than crypto, so a client ID is the same
+   on every visit and a screenshot taken today still matches the demo. */
+const HEX = '0123456789abcdef'
+function uuid () {
+  return [8, 4, 4, 4, 12]
+    .map(n => Array.from({ length: n }, () => HEX[Math.floor(r() * 16)]).join(''))
+    .join('-')
+}
+
+// ---------------------------------------------------------------- users
+export function seedUsers (count = 1820) {
+  const out = []
+  /* Usernames must be unique: the database has a unique index on
+     (tenant_id, username) and will refuse the insert otherwise. Forty first
+     names against forty surnames collide long before 420 rows, so a name
+     that has already been used gets a numeric suffix. IndexedDB had no such
+     constraint and silently overwrote the earlier row, which hid this. */
+  const taken = new Set()
+  for (let i = 1; i <= count; i++) {
+    /* The portal's demo account is pinned by name, not left to the PRNG.
+       The generator is deterministic but the *stream* is shared, so which
+       name lands on usr_00001 depends on how many numbers the seeders before
+       it happened to draw — and that differs between a first seed and a
+       reset. The account the sign-in screen names and the documentation
+       quotes was therefore a different person after a reseed, which is a
+       first-rate way to make somebody think sign-in is broken. */
+    const demoMember = i === 1
+    const first = demoMember ? 'Ananya' : pick(FIRST)
+    const last = demoMember ? 'Menon' : pick(LAST)
+    const base = `${first}.${last}`.toLowerCase()
+    let username = base
+    let n = 1
+    while (taken.has(username)) username = base + ++n
+    taken.add(username)
+    /* The first non-admin account is the one the member portal signs in as,
+       and the sign-in screen offers it by name. It is pinned active and
+       unenrolled so that the enrolment path — the thing the portal exists to
+       show — is the one a visitor lands on. The seed also gives this account
+       its devices and its access history, for the same reason. */
+    const enrolled = demoMember ? false : chance(0.94)   // most people have MFA
+    const status = demoMember ? 'active'
+      : (chance(0.975) ? 'active' : (chance(0.5) ? 'suspended' : 'pending'))
+    out.push({
+      id: `usr_${pad(i, 5)}`,
+      firstName: first,
+      lastName: last,
+      username,
+      email: `${username}@instasafe.com`,
+      department: pick(DEPTS),
+      authProfile: chance(0.62) ? 'Local' : pick(['Azure AD','RADIUS','LDAP','SAML','Google']),
+      mfaEnrolled: enrolled,
+      /* The account the portal opens with is the one a visitor walks the
+         whole first-day path on, and that path is only worth walking if it
+         includes the second factor. */
+      mfaRequired: demoMember ? true : chance(0.6),
+      mfaSecret: null,                          // set for real on enrolment
+      status,
+      groups: [],
+      countryCode: '91',
+      mobile: `98${pad(Math.floor(r() * 99999999), 8)}`,
+      location: pick(CITIES)[0],
+      lastSeenAt: status === 'pending' ? null : ago(r() * 45),
+      createdAt: ago(60 + r() * 600),
+      isAdmin: false,
+      deviceBinding: chance(0.8),
+      deviceCheckEnabled: chance(0.7),
+      geoFenceEnabled: chance(0.25),
+      autoSuspend: chance(0.3)
+    })
+  }
+  // A known admin, so the demo always has a predictable way in.
+  out.unshift({
+    id: 'usr_00000',
+    firstName: 'Demo', lastName: 'Admin',
+    username: 'admin',
+    email: 'admin@instasafe.com',
+    department: 'IT',
+    authProfile: 'Local',
+    mfaEnrolled: false, mfaSecret: null,
+    /* Every other user row carries this, and the bulk inserter takes the
+       union of keys across a chunk — so one row omitting it bound a null
+       against a NOT NULL column and lost the whole insert. The admin row has
+       done this twice now, once with `isAdmin` and once here. */
+    mfaRequired: false,
+    status: 'active',
+    groups: ['grp_0001'],
+    countryCode: '91', mobile: '9800000000',
+    location: 'Bengaluru',
+    lastSeenAt: new Date().toISOString(),
+    createdAt: ago(720),
+    isAdmin: true,
+    deviceBinding: true, deviceCheckEnabled: true,
+    geoFenceEnabled: false, autoSuspend: false
+  })
+  return out
+}
+
+// --------------------------------------------------------------- groups
+export function seedGroups () {
+  /* One group per department, plus the three cross-cutting ones. Every
+     department a user can be in has a group, so membership below is real
+     rather than relying on a group name happening to equal a department
+     name - which left `users.groups` empty and made every group-based access
+     rule match nothing. */
+  const rows = [
+    ['grp_0001', 'Administrators', 'Local'],
+    ['grp_0002', 'Engineering',    'Azure AD'],
+    ['grp_0003', 'Finance',        'Azure AD'],
+    ['grp_0004', 'Sales',          'Azure AD'],
+    ['grp_0005', 'Support',        'LDAP'],
+    ['grp_0006', 'HR',             'Azure AD'],
+    ['grp_0007', 'Operations',     'Azure AD'],
+    ['grp_0008', 'Legal',          'Local'],
+    ['grp_0009', 'Marketing',      'Azure AD'],
+    ['grp_0010', 'IT',             'Local'],
+    ['grp_0011', 'Security',       'Local'],
+    ['grp_0012', 'Contractors',    'Local'],
+    ['grp_0013', 'Executives',     'SAML']
+  ]
+  return rows.map(([id, name, authType]) => ({
+    id, name, authType,
+    members: 0,                       // filled in by linkUsersToGroups
+    memberIds: [],                    // and so is this: the count alone could
+                                      // not answer "who is in this group"
+    location: pick(['Mumbai', 'Bengaluru', 'London', 'Singapore']),
+    description: `${name} team`,
+    /* Velto's group form carries twelve switches, the same set a user does.
+       That is the point of a group: set them once rather than per member.
+       IP Restriction is not among them — it is a user field only. */
+    deviceUpdates: false, geoBinding: false, autoSuspend: false,
+    deviceDlp: false, shiftSchedule: false, geoFence: false,
+    blockApps: false, riskProfile: false, devicePolicy: false,
+    twoFactor: name !== 'Contractors',
+    deviceBinding: !['Contractors', 'Sales'].includes(name),
+    deviceChecks: ['Administrators', 'Engineering', 'Finance', 'Executives', 'Security'].includes(name),
+    accessRules: 0,                   // filled in by countRulesPerGroup
+    createdAt: ago(200 + r() * 400)
+  }))
+}
+
+/**
+ * How many access rules name each group as their source.
+ *
+ * The column existed and was seeded as zero on every row, so the list said no
+ * group had any rule while the access-rules screen listed a dozen pointed
+ * straight at them. Counted from the rules themselves now.
+ */
+export function countRulesPerGroup (groups, rules) {
+  for (const g of groups) {
+    g.accessRules = rules.filter(r => r.sourceType === 'group' && r.source === g.name).length
+  }
+  return groups
+}
+
+/** Puts every user in the group for their department. Mutates both. */
+export function linkUsersToGroups (users, groups) {
+  const byName = Object.fromEntries(groups.map(g => [g.name, g]))
+  for (const u of users) {
+    const g = byName[u.isAdmin ? 'Administrators' : u.department]
+    if (!g) continue
+    u.groups = [g.id]
+    g.memberIds.push(u.id)
+    g.members += 1
+  }
+  return { users, groups }
+}
+
+// -------------------------------------------------------------- devices
+export function seedDevices (users, count = 2140) {
+  const out = []
+  for (let i = 1; i <= count; i++) {
+    /* The portal signs in as the first non-admin account, and a member
+       dashboard showing nobody's devices teaches nothing. Velto's own demo
+       user has three; so does this one. Random assignment over 1,820 people
+       left the single account anybody actually opens with none. */
+    const demo = i <= 3
+    const u = demo ? users[1] : users[1 + Math.floor(r() * (users.length - 1))]
+    const [city, cc, lat, lon] = pick(CITIES)
+    // 775 pending is the real measured number from production
+    const status = demo ? 'approved'
+      : (i <= 775 ? 'pending' : (chance(0.985) ? 'approved' : 'rejected'))
+    const os = pick(OS)
+    out.push({
+      id: `dev_${pad(i, 5)}`,
+      name: `${u.firstName}-${os.split(' ')[0]}-${pad(i, 3)}`,
+      userId: u.id,
+      username: u.username,
+      os,
+      osFamily: os.split(' ')[0],
+      agentVersion: chance(0.72) ? '4.8.2' : pick(['4.7.9','4.6.1','4.8.0']),
+      macAddress: Array.from({ length: 6 }, () => Math.floor(r() * 256).toString(16).padStart(2, '0')).join(':'),
+      /* Velto identifies a device by MAC, serial and UUID together, because
+         any one of them can be spoofed, reused after a motherboard swap, or
+         simply absent on a personal machine. */
+      serialNumber: Array.from({ length: 10 }, () =>
+        'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'[Math.floor(r() * 34)]).join(''),
+      uuid: [8, 4, 4, 4, 12].map(n => Array.from({ length: n }, () =>
+        '0123456789abcdef'[Math.floor(r() * 16)]).join('')).join('-'),
+      ipAddress: `10.${Math.floor(r() * 254)}.${Math.floor(r() * 254)}.${Math.floor(r() * 254)}`,
+      status,
+      bound: status === 'approved' && chance(0.88),
+      city, countryCode: cc, lat, lon,
+      lastSeenAt: status === 'pending' ? ago(r() * 14) : ago(r() * 30),
+      enrolledAt: ago(r() * 300),
+      posture: {
+        diskEncryption: chance(0.9),
+        antivirus: chance(0.86),
+        firewall: chance(0.93),
+        osUpToDate: chance(0.74),
+        screenLock: chance(0.95),
+        jailbroken: chance(0.02)
+      }
+    })
+  }
+  return out
+}
+
+// --------------------------------------------------------- applications
+/**
+ * Application groups, with members.
+ *
+ * These did not exist in the seed at all, so the screen was empty and every
+ * access rule pointing at a group pointed at nothing. A group holds
+ * applications of one type, which is velto's rule and the reason the picker
+ * narrows by it.
+ */
+export function seedAppGroups (apps) {
+  const byType = {}
+  for (const a of apps) (byType[a.type] ||= []).push(a)
+  const defs = [
+    ['Internal web apps', 'WEB', 'web', 'Everything behind the corporate SSO'],
+    ['Production servers', 'SSH', 'ssh', 'Shell access to the production estate'],
+    ['Windows jump hosts', 'RDP', 'rdp', 'Desktops reached over RDP'],
+    ['Support consoles', 'VNC', 'vnc', 'Screens the support team drives directly']
+  ]
+  return defs
+    .filter(([, , t]) => (byType[t] || []).length)
+    .map(([name, type, t, description], i) => ({
+      id: `apg_${pad(i + 1, 4)}`,
+      name, type, description,
+      memberIds: byType[t].map(a => a.id),
+      createdAt: ago(100 + r() * 300)
+    }))
+}
+
+export function seedApplications () {
+  /* Columns: name, type, host, port, owner, recording, blockCopyPaste, watermark.
+     The session controls are set deliberately rather than randomly: these three
+     switches are the differentiated part of the RDP/SSH story, so the demo has
+     to contain a clear example of each one being on and each being off.
+     Leaving it to chance once produced a seed where copy-blocking appeared
+     nowhere at all. */
+  const apps = [
+    ['Jira',              'web',  'https://jira.internal',      443, 'Engineering', 0, 0, 0],
+    ['Confluence',        'web',  'https://wiki.internal',      443, 'Engineering', 0, 0, 0],
+    ['GitLab',            'web',  'https://git.internal',       443, 'Engineering', 0, 0, 0],
+    ['Finance DB',        'rdp',  '10.20.4.17',                3389, 'Finance',     1, 1, 1],
+    ['Payroll Web',       'web',  'https://payroll.internal',   443, 'Finance',     0, 0, 0],
+    ['Reports DB',        'ssh',  '10.20.4.33',                  22, 'Finance',     1, 1, 0],
+    ['Build Server',      'ssh',  '10.20.8.12',                  22, 'Engineering', 1, 0, 0],
+    ['Jump Host',         'ssh',  '10.20.0.5',                   22, 'IT',          1, 1, 1],
+    ['Code Server',       'web',  'https://code.internal',      443, 'Engineering', 0, 0, 0],
+    ['Salesforce',        'web',  'https://sf.internal',        443, 'Sales',       0, 0, 0],
+    ['Legacy ERP',        'rdp',  '10.20.6.41',                3389, 'Operations',  1, 0, 1],
+    ['Design VM',         'vnc',  '10.20.9.22',                5900, 'Marketing',   0, 1, 0],
+    ['HR Portal',         'web',  'https://hr.internal',        443, 'HR',          0, 0, 0],
+    ['Support Desk',      'web',  'https://desk.internal',      443, 'Support',     0, 0, 0],
+    ['Log Collector',     'ssh',  '10.20.1.90',                  22, 'Security',    1, 0, 0],
+    ['Domain Controller', 'rdp',  '10.20.0.10',                3389, 'IT',          1, 1, 1],
+    /* The three types this seed never produced, so their fields had nothing
+       to show: a database with a driver, a file share with a share name, a
+       plain FQDN with a port list. */
+    ['Analytics Warehouse', 'db',   '10.20.4.33',               5432, 'Finance',     1, 0, 0],
+    ['Finance Shares',      'wfs',  '10.20.4.50',                445, 'Finance',     0, 0, 0],
+    ['Partner Portal',      'fqdn', 'partners.instasafe.com',    443, 'Sales',       0, 0, 0]
+  ]
+  const GW = ['gw-mum-01', 'gw-blr-01', 'gw-sin-01']
+  return apps.map(([name, type, host, port, owner, rec, cpb, wm], i) => ({
+    id: `app_${pad(i + 1, 4)}`,
+    name, type, host, port, owner,
+    gateway: GW[i % GW.length],
+    status: name === 'Legacy ERP' ? 'disabled' : 'active',
+    sessionRecording: !!rec,
+    blockCopyPaste: !!cpb,
+    watermark: !!wm,
+    /* Type-specific fields, blank where they do not apply. */
+    ports: type === 'fqdn' ? '80,443' : '',
+    landingPage: type === 'web' ? '/login' : '',
+    directAccess: false,
+    useInternalIp: type === 'web',
+    driver: type === 'db' ? 'PostgreSQL' : '',
+    share: type === 'wfs' ? 'finance' : '',
+    domain: type === 'wfs' ? 'ISA' : '',
+    blockDownloads: type === 'wfs' || (type === 'web' && owner === 'Finance'),
+    createdAt: ago(100 + r() * 500)
+  }))
+}
+
+export function seedAppServices () {
+  return [
+    ['HTTPS','tcp',443], ['HTTP','tcp',80], ['RDP','tcp',3389], ['SSH','tcp',22],
+    ['VNC','tcp',5900], ['MySQL','tcp',3306], ['PostgreSQL','tcp',5432],
+    ['SMB','tcp',445], ['DNS','udp',53], ['LDAPS','tcp',636]
+  ].map(([name, proto, port], i) => ({
+    id: `svc_${pad(i + 1, 4)}`, name, protocol: proto, port, createdAt: ago(400)
+  }))
+}
+
+// --------------------------------------------------------- access rules
+export function seedAccessRules (groups, apps) {
+  const out = []
+  let n = 1
+  /* Rules carry ids as well as names now: the id is what the engine matches
+     on, the name is what a table can print without resolving anything. */
+  const groupId = (name) => groups.find(g => g.name === name)?.id
+  const appId = (name) => apps.find(a => a.name === name)?.id
+  const rule = (sourceType, source, destType, dest, action, extra = {}) => out.push({
+    id: `acl_${pad(n, 4)}`,
+    name: `${source} → ${dest}`,
+    sourceType, source, destType, dest, action,
+    sourceIds: [sourceType === 'group' ? groupId(source) : source].filter(Boolean),
+    destIds: [appId(dest)].filter(Boolean),
+    priority: n++,
+    enabled: true,
+    schedule: extra.schedule || 'Always',
+    createdAt: ago(50 + r() * 300),
+    ...extra
+  })
+  rule('group', 'Administrators', 'application', 'Domain Controller', 'allow')
+  rule('group', 'Administrators', 'application', 'Jump Host', 'allow')
+  rule('group', 'Engineering', 'application', 'GitLab', 'allow')
+  rule('group', 'Engineering', 'application', 'Jira', 'allow')
+  rule('group', 'Engineering', 'application', 'Build Server', 'allow')
+  rule('group', 'Engineering', 'application', 'Code Server', 'allow')
+  rule('group', 'Engineering', 'application', 'Finance DB', 'deny')
+  rule('group', 'Finance', 'application', 'Finance DB', 'allow', { schedule: 'Business hours' })
+  rule('group', 'Finance', 'application', 'Payroll Web', 'allow', { schedule: 'Business hours' })
+  rule('group', 'Finance', 'application', 'Reports DB', 'allow')
+  rule('group', 'Sales', 'application', 'Salesforce', 'allow')
+  rule('group', 'Support', 'application', 'Support Desk', 'allow')
+  rule('group', 'HR', 'application', 'HR Portal', 'allow')
+  rule('group', 'Contractors', 'application', 'Jira', 'allow', { schedule: 'Business hours' })
+  rule('group', 'Contractors', 'application', 'Finance DB', 'deny')
+  rule('group', 'Contractors', 'application', 'Domain Controller', 'deny')
+  rule('group', 'Executives', 'application', 'Payroll Web', 'allow')
+  rule('group', 'Operations', 'application', 'Jump Host', 'allow', { schedule: 'Business hours' })
+  rule('group', 'Security', 'application', 'Log Collector', 'allow')
+  rule('group', 'IT', 'application', 'Domain Controller', 'allow')
+  rule('group', 'Marketing', 'application', 'Design VM', 'allow')
+  rule('group', 'HR', 'application', 'Payroll Web', 'deny')
+  // a deliberate shadowed rule, so the access explorer has something to find
+  rule('group', 'Engineering', 'application', 'Jira', 'deny')
+  return out
+}
+
+// ------------------------------------------- controllers and gateways
+/**
+ * The cloud servers a controller can be placed on.
+ *
+ * The live `#cloud_server` select carries 24 options with numeric ids and
+ * names that are a region plus a serial, not a tidy scheme — `Mumbai9C` and
+ * `mumbai4old` sit in the same list. The shape is kept and the five options
+ * that named a real customer are replaced with further regions, because this
+ * demo is public (see VELTO-AUDIT §3). A controller
+ * does not carry a region of its own — the cloud server is the region, which
+ * is why velto's list column is Cloud Server and there is no Region column.
+ */
+export const CLOUD_SERVERS = [
+  [149, 'Singapore1'], [152, 'mumbai4'], [162, 'Mumbai6'], [167, 'mumbai4old'],
+  [168, 'Mumbai7'], [177, 'Virginia1'], [178, 'Dallas1'], [184, 'Mumbai9'],
+  [185, 'Ireland1'], [186, 'Ireland2'], [187, 'Singapore2'], [189, 'Mumbai10'],
+  [191, 'Mumbai11'], [192, 'Mumbai12'], [195, 'Mumbai9C'], [196, 'Mumbai10C'],
+  [198, 'Singapore3'], [204, 'Virginia2'], [207, 'Frankfurt1'], [211, 'Sydney1'],
+  [216, 'mumbai15'], [217, 'mumbai16'], [221, 'Dallas2'], [228, 'Frankfurt2']
+].map(([id, name]) => ({ id, name }))
+
+/** `#net_mask` offers exactly /16 to /28. Not a free number field. */
+export const NETMASK_BITS = Array.from({ length: 13 }, (_, i) => 16 + i)
+
+/** The management port is not asked for: it is the data port plus 20000. */
+export const MGT_PORT_OFFSET = 20000
+export const mgtPortFor = (port) => Number(port || 0) + MGT_PORT_OFFSET
+
+/**
+ * Controllers.
+ *
+ * The earlier shape — region, IP, version, uptime in days — was invented. The
+ * real row is name, cloud server, protocol/port, network, status, and the real
+ * form carries a location, netmask bits and a topology. Every field below is a
+ * field the live form has; nothing has been added for decoration.
+ *
+ * Ports sit in the 1300s with the management port derived, the way the one
+ * captured controller does (1306 / 21306).
+ */
+export function seedControllers () {
+  return [
+    ['demomum6', 162, 'Mumbai', 'UDP', 1306, '10.130.9.0', 24, 'running'],
+    ['demosin2', 187, 'Singapore', 'UDP', 1312, '10.130.12.0', 24, 'running'],
+    ['demoire1', 185, 'Dublin', 'TCP', 1318, '10.130.18.0', 23, 'running'],
+    ['demodal1', 178, 'Dallas', 'UDP', 1324, '10.130.24.0', 24, 'stopped']
+  ].map(([name, cloudServerId, location, protocol, port, network, netmaskBits, status], i) => ({
+    id: `ctl_${pad(i + 1, 4)}`,
+    name,
+    cloudServerId,
+    cloudServer: CLOUD_SERVERS.find(s => s.id === cloudServerId)?.name || '',
+    location,
+    protocol,
+    port,
+    mgtPort: mgtPortFor(port),
+    network,
+    netmaskBits,
+    topology: 'Subnet',
+    status,
+    pendingCommit: i === 1,
+    createdAt: ago(500)
+  }))
+}
+
+/**
+ * Gateways.
+ *
+ * Velto's list is Gateway Name · Backup Gateway Name · Location · Number of
+ * Networks, and its form is four fields: `gw_name`, `backup_name`, `location`
+ * and a repeating `pro_net-N`. A gateway therefore carries a **backup
+ * gateway** and a **list of protected networks in CIDR**, neither of which
+ * this demo had — the captured gateway protects 192.168.0.0/24, 10.0.0.0/24
+ * and 0.0.0.0/0, so three networks behind one name is the ordinary case, and
+ * "Number of Networks" is that count.
+ *
+ * `status`, `sessions`, `throughputMbps`, `latencyMs` and `ip` are kept even
+ * though the gateway list shows none of them: the dashboard's gateway load,
+ * the graph, the network test and Live Gateways all read them. They are
+ * operational telemetry that belongs on those screens, not columns here.
+ */
+/**
+ * Three gateways on a licence for four.
+ *
+ * It used to seed four, and the licence allows four, so "Add a gateway" —
+ * the second step of the main guided flow — refused with *Maximum gateway
+ * limit reached* and the flow could not be finished. The refusal is correct
+ * behaviour and worth keeping; what was wrong was seeding the tenant right
+ * up against its own limit, which left no room to do the thing the demo
+ * exists to demonstrate.
+ *
+ * London is the one that goes: Singapore stays because it is the degraded
+ * one, and a tenant where nothing is wrong has nothing for the dashboard's
+ * attention band to say.
+ */
+export function seedGateways () {
+  return [
+    ['gw-mum-01', 'gw-mum-02', 'Mumbai', '103.21.44.12', 'up', 188,
+      ['10.130.0.0/16', '192.168.10.0/24']],
+    ['gw-blr-01', 'gw-blr-02', 'Bengaluru', '103.21.45.9', 'up', 104,
+      ['10.140.0.0/16', '172.16.4.0/24']],
+    ['gw-sin-01', 'gw-sin-02', 'Singapore', '139.59.12.4', 'degraded', 4,
+      ['10.60.0.0/16', '192.168.60.0/24']]
+  ].map(([name, backupName, location, ip, status, sessions, protectedNetworks], i) => ({
+    id: `gw_${pad(i + 1, 4)}`,
+    name, backupName, location, protectedNetworks,
+    ip, status, sessions,
+    version: '3.4.1',
+    throughputMbps: Math.round(sessions * (1.5 + r() * 3)),
+    latencyMs: Math.round(8 + r() * 40),
+    createdAt: ago(480)
+  }))
+}
+
+// ------------------------------------------------------- auth profiles
+/**
+ * Authentication profiles, one shape per protocol.
+ *
+ * These used to be eight rows of one invented shape — name, type, host, port,
+ * tls — behind a single screen with a type filter. Velto does not work that
+ * way: each protocol is its own screen with its own columns, its own form and
+ * its own toolbar, because an Active Directory profile and an OAuth2 profile
+ * have almost no fields in common. A domain and two server IPs mean nothing
+ * to OAuth; a client id and a redirect URI mean nothing to RADIUS.
+ *
+ * Field names below are velto's column headings. `local` is absent on
+ * purpose: it is not a list at all, it is the tenant's password policy, and
+ * it lives in settings.
+ */
+/** A PEM-shaped signing certificate with invented contents, for the SAML
+ *  profiles. Velto holds the IdP's real one in the same field. */
+const SAML_DEMO_CERT = '-----BEGIN CERTIFICATE-----\nMIIC8DCCAdigAwIBAgIQZy92n5Z2xqpJy804i1XNoTANBgkqhkiG9w0BAQsFADA0\nMTIwMAYDVQQDEylEZW1vIElkUCBTaWduaW5nIENlcnRpZmljYXRlIChub3QgcmVh\nbCkwHhcNMjYwNzAyMDYzMjQ1WhcNMjkwNzAyMDYzMjQ1WjA0MTIwMAYDVQQDEylE\nZW1vIElkUCBTaWduaW5nIENlcnRpZmljYXRlIChub3QgcmVhbCk=\n-----END CERTIFICATE-----'
+
+/**
+ * User providers — Azure AD and Google.
+ *
+ * The collection existed and was never seeded, so both screens were empty
+ * whatever the config said. Fields are velto's: Azure holds a tenant and a
+ * client id, Google holds an admin user, and both hold a comma-separated
+ * group list that decides who is imported.
+ */
+/**
+ * Device policies.
+ *
+ * Another collection that was in the store list and never written to, so the
+ * screen was empty whatever its config said. Velto's own rows are all Windows
+ * config policies — bitlocker on, bitlocker off, set BIOS password — which is
+ * what the templates are for.
+ */
+/**
+ * Six collections that were in the store list and never written to, so six
+ * screens were permanently empty. They are the long tail of the same miss
+ * that left user providers and device policies blank.
+ */
+
+/** Applications the agent stops from running. */
+export function seedBlockedApps () {
+  return [
+    ['uTorrent', 'utorrent.exe', 'Windows', true],
+    ['BitTorrent', 'bittorrent.exe', 'Windows', true],
+    ['TeamViewer', 'TeamViewer.exe', 'All', true],
+    ['AnyDesk', 'AnyDesk.exe', 'All', true],
+    ['Steam', 'steam.exe', 'Windows', false],
+    ['Tor Browser', 'firefox.exe', 'All', true]
+  ].map(([name, process, platform, enabled], i) => ({
+    id: `bap_${pad(i + 1, 4)}`,
+    name, process, platform, enabled,
+    createdAt: ago(80 + r() * 300)
+  }))
+}
+
+/** Files pushed to managed devices, with the check that proves they landed. */
+export function seedDeviceUpdates () {
+  return [
+    ['Falcon sensor 7.20', 'FalconSensor.msi', 'Enabled', '/quiet /norestart',
+      'Immediate', 'File present', 'C:\\Program Files\\CrowdStrike\\CSFalconService.exe'],
+    ['InstaSafe agent 4.8.2', 'InstaSafeAgent.msi', 'Enabled', '/S',
+      'After-Reboot', 'Registry Key present', 'HKLM\\SOFTWARE\\InstaSafe\\Agent'],
+    ['Remove legacy VPN client', 'LegacyVpn.msi', 'Enabled', '/uninstall /quiet',
+      'Uninstall', 'File present', 'C:\\Program Files\\LegacyVPN\\vpn.exe'],
+    ['Zscaler removal', 'ZscalerCleanup.exe', 'Disabled', '--silent',
+      'Uninstall', 'Registry Key present', 'HKLM\\SOFTWARE\\Zscaler']
+  ].map(([name, fileName, status, args, installSchedule, validationCheck, checkValue], i) => ({
+    id: `dup_${pad(i + 1, 4)}`,
+    name, fileName, status, arguments: args,
+    installSchedule, validationCheck, checkValue,
+    createdAt: ago(40 + r() * 200)
+  }))
+}
+
+/** URL rules. Velto matches exact, wildcard or regex. */
+export function seedUrlFilters () {
+  return [
+    ['Block personal file sharing', 'block', 'wildcard', '*.dropbox.com/*', 1, true],
+    ['Block webmail', 'block', 'wildcard', '*.mail.yahoo.com/*', 2, true],
+    ['Allow the status page', 'allow', 'exact', 'https://status.instasafe.com', 3, true],
+    ['Block pastebins', 'block', 'regex', '^https?://(pastebin|hastebin)\\.com/.*$', 4, true],
+    ['Block social media', 'block', 'wildcard', '*.facebook.com/*', 5, false]
+  ].map(([name, action, urlType, url, priority, enabled], i) => ({
+    id: `urf_${pad(i + 1, 4)}`,
+    name, action, urlType, url, priority, enabled,
+    createdAt: ago(60 + r() * 240)
+  }))
+}
+
+/** Content rules, matched on the sub-category a destination falls into. */
+export function seedContentFilters () {
+  return [
+    ['Block adult content', 'block', 'Adult / Mature Content',
+      ['Pornography', 'Nudity and Risque', 'Gambling'], 1, true],
+    ['Block known security risks', 'block', 'Security Risk',
+      ['Malicious Websites', 'Phishing'], 2, true],
+    ['Block social networking', 'block', 'Social / Lifestyle',
+      ['Social Networking'], 3, true],
+    ['Allow business tools', 'allow', 'General Interest - Business',
+      ['Information Technology'], 4, true]
+  ].map(([name, action, category, subCategories, priority, enabled], i) => ({
+    id: `cof_${pad(i + 1, 4)}`,
+    name, action, category, subCategories, priority, enabled,
+    createdAt: ago(60 + r() * 240)
+  }))
+}
+
+/** File type rules, matched on the extension of a transfer. */
+export function seedFileTypeFilters () {
+  return [
+    ['Block executables', 'block', 'Executables', ['.exe', '.bat', '.msi', '.scr'], 1, true],
+    ['Block scripts', 'block', 'Scripts', ['.ps1', '.vbs', '.js'], 2, true],
+    ['Block archives from contractors', 'block', 'Compressed Files', ['.zip', '.rar', '.7z'], 3, false],
+    ['Allow documents', 'allow', 'Documents', ['.pdf', '.docx', '.xlsx'], 4, true]
+  ].map(([name, action, category, extensions, priority, enabled], i) => ({
+    id: `ftf_${pad(i + 1, 4)}`,
+    name, action, category, extensions, priority, enabled,
+    createdAt: ago(60 + r() * 240)
+  }))
+}
+
+/** Named groups of domains that rules and filters point at. */
+export function seedDomainLists () {
+  return [
+    ['Sanctioned SaaS', 'allow',
+      'login.microsoftonline.com\noffice.com\nslack.com\natlassian.net\ngithub.com'],
+    ['Finance systems', 'allow',
+      'sap.corp.example.com\npayroll.example.com\nbank.example.com'],
+    ['Known bad', 'block',
+      'malware-c2.example\nphish-login.example\nexfil.example.net'],
+    ['Personal cloud storage', 'block',
+      'dropbox.com\ndrive.google.com\nmega.nz\nwetransfer.com']
+  ].map(([name, action, list], i) => ({
+    id: `dml_${pad(i + 1, 4)}`,
+    name, action, list, priority: i + 1, enabled: true,
+    createdAt: ago(60 + r() * 240)
+  }))
+}
+
+/** Administrators other than the tenant owner. */
+export function seedSubAdmins () {
+  return [
+    ['Priya Nair', 'priya.nair@example.com', 'Security analyst', true],
+    ['Deepak Menon', 'deepak.menon@example.com', 'Helpdesk', true],
+    ['Asha Rao', 'asha.rao@example.com', 'Full admin', true],
+    ['Vikram Shah', 'vikram.shah@example.com', 'Read only', true],
+    ['Neha Gupta', 'neha.gupta@example.com', 'Helpdesk', false]
+  ].map(([name, email, role, enabled], i) => ({
+    id: `sad_${pad(i + 1, 4)}`, name, email, role, enabled,
+    lastSeenAt: ago(r() * 20), createdAt: ago(100 + r() * 300)
+  }))
+}
+
+/** What each of those roles may actually do. */
+export function seedRoles () {
+  return [
+    ['Read only', 'See everything, change nothing', false, false, false, true, false],
+    ['Helpdesk', 'Approve devices and reset access for users', true, true, false, true, false],
+    ['Security analyst', 'Read logs and write access rules', false, true, true, true, false],
+    ['Full admin', 'Everything, including tenant settings', true, true, true, true, true]
+  ].map(([name, description, canManageUsers, canApproveDevices, canEditRules, canViewLogs, canEditSettings], i) => ({
+    id: `rol_${pad(i + 1, 4)}`,
+    name, description,
+    canManageUsers, canApproveDevices, canEditRules, canViewLogs, canEditSettings,
+    createdAt: ago(200 + r() * 300)
+  }))
+}
+
+/** Reports that go out without anybody opening the console. */
+export function seedReportSubscriptions () {
+  return [
+    ['Weekly access summary', ['Access Log', 'Application Access Log'], 'Weekly', 'Monday', '07:00',
+      'security@example.com', 'it-leads@example.com'],
+    ['Daily event digest', ['Event Log'], 'Daily', '', '06:30',
+      'soc@example.com, asha.rao@example.com', ''],
+    ['Monthly usage', ['Data Usage Report', 'Time Usage Report'], 'Monthly', '', '08:00',
+      'it-leads@example.com', ''],
+    ['Dormant account review', ['User Last Login Report'], 'Monthly', '', '09:00',
+      'hr@example.com', 'it-leads@example.com'],
+    ['Risk digest', ['Risk Report'], 'Daily', '', '07:15', 'soc@example.com', '']
+  ].map(([name, reports, frequency, day, time, recipients, ccEmails], i) => ({
+    id: `rsb_${pad(i + 1, 4)}`,
+    name, reports, frequency, day, time, recipients, ccEmails,
+    dayOfMonth: frequency === 'Monthly' ? 1 : null,
+    timezone: '(UTC+05:30) Indian Standard Time',
+    lastSentAt: ago(r() * 14),
+    createdAt: ago(150 + r() * 200)
+  }))
+}
+
+export function seedAppAccessLog (users, count = 372) {
+  const DEST = [
+    '172.31.12.75', '172.31.13.231', '172.31.5.124', '13.235.73.156',
+    '13.232.6.65', '65.1.110.5', '10.20.4.17', '10.130.9.40'
+  ]
+  const PORTS = [389, 389, 389, 636, 443, 3389, 22, 1433]
+  const COUNTRIES = ['India', 'India', 'India', 'Singapore', 'United Kingdom', 'United States']
+  const out = []
+  for (let i = 0; i < count; i++) {
+    /* Same reason as the devices: the account the member portal opens with
+       needs a history, or its "recently opened" list is empty on a tenant
+       with 372 rows in it. */
+    const u = i < 8 ? users[1] : users[Math.floor(r() * users.length)]
+    const blocked = i < 8 ? chance(0.2) : chance(0.72)
+    out.push({
+      id: `aal_${pad(i + 1, 5)}`,
+      at: ago(r() * 2),
+      username: (i >= 8 && chance(0.35)) ? 'InstaSafeHelper' : u.username,
+      publicIp: `13.200.153.189:${40000 + Math.floor(r() * 20000)}`,
+      country: pick(COUNTRIES),
+      destination: pick(DEST),
+      port: pick(PORTS),
+      action: blocked ? 'Blocked' : 'Allowed'
+    })
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at))
+}
+
+/**
+ * Access Log — and what velto means by it.
+ *
+ * Not allow and deny decisions, which is what this console assumed: velto's
+ * Access Log is the **administrator activity trail**. User, what they opened
+ * or did, and when. The screen that shows access decisions is the Event Log
+ * filtered, and that already exists.
+ */
+export function seedAccessLog (count = 240) {
+  const WHO = [
+    'admin@example.com', 'priya.nair@example.com',
+    'asha.rao@example.com', 'deepak.menon@example.com'
+  ]
+  const WHAT = [
+    'all logs & reports', 'all users', 'all devices', 'all access rules',
+    'all gateways', 'all controllers', 'company details', 'user settings',
+    'device checks', 'all applications', 'subscription details',
+    'exported users to CSV', 'approved a device', 'suspended a user',
+    'edited an access rule', 'signed in', 'signed out'
+  ]
+  return Array.from({ length: count }, (_, i) => ({
+    id: `acl_${pad(i + 1, 5)}`,
+    actor: pick(WHO),
+    activity: pick(WHAT),
+    at: ago(r() * 30)
+  })).sort((a, b) => b.at.localeCompare(a.at))
+}
+
+/**
+ * Risk Report findings.
+ *
+ * Velto's columns are Detected At, Username, Message and **Additional
+ * Informations** — a block of key/value pairs under the message, which is
+ * where the detail that makes a finding actionable lives: how many attempts,
+ * which address, which user.
+ *
+ * The detector in AnomalyLogs.vue is real and still runs on demand. These are
+ * the findings a tenant arrives holding, so the screen is not empty on a
+ * first visit.
+ */
+export function seedAnomalies (users, count = 50) {
+  const DEST = ['172.31.12.75', '172.31.13.231', '172.31.5.124', '13.235.73.156', '65.1.110.5']
+  const PUBLIC = ['122.176.64.111', '223.188.154.89', '13.200.153.189', '49.37.220.14']
+  const PLACES = [
+    ['Mumbai', '19.0760, 72.8777'], ['Kanpur', '26.4631, 80.3479'],
+    ['Gurugram', '28.4927, 77.5358'], ['Bengaluru', '12.9716, 77.5946'],
+    ['London', '51.5072, -0.1276'], ['Singapore', '1.3521, 103.8198']
+  ]
+  const out = []
+  for (let i = 0; i < count; i++) {
+    const u = users[Math.floor(r() * users.length)]
+    const actor = chance(0.3) ? 'InstaSafeHelper' : u.username
+    const id = `anm_${pad(i + 1, 4)}`
+    const at = ago(r() * 21)
+    const roll = r()
+
+    if (roll < 0.3) {
+      /* "Travel speed 2804.66348638 km/h detected." */
+      const [, from] = pick(PLACES)
+      const [, to] = pick(PLACES)
+      const speed = 900 + r() * 2400
+      out.push({
+        id, at, actor, detector: 'travel-speed', anomalyType: 'Travel speed', severity: 'high',
+        detail: `Travel speed ${speed.toFixed(8)} km/h detected.`,
+        extra: { Speed: speed, Last_location: from, Current_location: to }
+      })
+    } else if (roll < 0.52) {
+      /* "4 users from IP 122.176.64.111" */
+      const ip = pick(PUBLIC)
+      const names = Array.from({ length: 2 + Math.floor(r() * 3) },
+        () => users[Math.floor(r() * users.length)].username)
+      out.push({
+        id, at, actor, detector: 'shared-ip', anomalyType: 'Shared source IP',
+        severity: names.length >= 4 ? 'high' : 'medium',
+        detail: `${names.length} users from IP ${ip}`,
+        extra: { Usernames: names.join(', ') }
+      })
+    } else if (roll < 0.72) {
+      /* "User switched between 2 IPs." */
+      const ips = [pick(PUBLIC), pick(PUBLIC)]
+      out.push({
+        id, at, actor, detector: 'ip-switching', anomalyType: 'IP switching', severity: 'medium',
+        detail: `User switched between ${ips.length} IPs.`,
+        extra: { Ips: ips.join(', ') }
+      })
+    } else {
+      /* "1 blocked attempts on 172.31.12.75" — veno's wording, kept */
+      const ip = pick(DEST)
+      const n = 1 + Math.floor(r() * 8)
+      out.push({
+        id, at, actor, detector: 'blocked-attempts', anomalyType: 'Blocked attempts',
+        severity: n >= 6 ? 'high' : n >= 3 ? 'medium' : 'low',
+        detail: `${n} blocked attempts on ${ip}`,
+        extra: { Attempts: n, Username: actor, Application_ip: ip }
+      })
+    }
+  }
+  return out.sort((x, y) => y.at.localeCompare(x.at))
+}
+
+/** Export profiles — velto keeps a list of them, one per destination. */
+export function seedExportProfiles () {
+  return [
+    ['SOC syslog', 'SYSLOG', 'Event Log', '10.20.4.60', '10.20.4.61', 'TLS', 6514],
+    ['QRadar events', 'QRADAR', 'Event Log', '10.20.4.70', '', 'TCP', 514],
+    ['Splunk app access', 'SPLUNK', 'App Access Log', '10.20.4.80', '', 'TLS', 8088],
+    ['Audit archive', 'SFTP', 'Session Log', '10.20.4.90', '', 'TCP', 22]
+  ].map(([name, serverType, logType, serverIp, backupServerIp, protocol, port], i) => ({
+    id: `exp_${pad(i + 1, 4)}`,
+    name, serverType, logType, serverIp, backupServerIp, protocol, port,
+    timezone: '(UTC+05:30) Indian Standard Time',
+    batchSize: 100, enabled: true,
+    createdAt: ago(90 + r() * 200)
+  }))
+}
+
+/**
+ * IDAM — this tenant acting as the provider.
+ *
+ * Five small collections, shaped from velto's own records: eight SCIM export
+ * profiles, four OAuth2 clients, four OIDC relying parties, ten SAML service
+ * providers and a handful of RADIUS clients. The SAML set keeps velto's own
+ * mix of SP types, because Azure and Google behave differently on the form
+ * and a demo with only Custom never shows that.
+ */
+/**
+ * Tech support access grants.
+ *
+ * Velto's own tenant holds a single expired one, which is the realistic
+ * state: a grant is made for one investigation and then runs out. Three
+ * here - one still live, so the Active mark has something to be on.
+ */
+export function seedTechSupportAccess () {
+  const day = 86400000
+  /* Invented people on example.com, never a real address at a real domain.
+     Velto's own row names an actual InstaSafe engineer; copying it into a
+     public demo repository would publish that person's work address. */
+  return [
+    { id: 'tsa_001', email: 'support.l1@example.com',
+      expiresAt: new Date(Date.now() - 204 * day).toISOString(),
+      grantedBy: 'admin@example.com', grantedAt: ago(211) },
+    { id: 'tsa_002', email: 'support.l2@example.com',
+      expiresAt: new Date(Date.now() - 12 * day).toISOString(),
+      grantedBy: 'admin@example.com', grantedAt: ago(19) },
+    { id: 'tsa_003', email: 'support.escalation@example.com',
+      expiresAt: new Date(Date.now() + 2 * day).toISOString(),
+      grantedBy: 'admin@example.com', grantedAt: ago(1) }
+  ]
+}
+
+export function seedScimExports () {
+  const SRC = [
+    ['testexport', 'for testin', true],
+    ['timeexport', 'Test scim export', true],
+    ['exporting', 'securetovelto', false],
+    ['databricksbhu', 'provision to databrics', true],
+    ['Pravinexport', 'Testing SCIM Export', true],
+    ['DatabricksExport', 'Provision to Databricks', true],
+    ['demotest', 'export user', false],
+    ['databricks', 'provision to databricks', true]
+  ]
+  const GROUPS = ['developers', 'Finance', 'Contractors', 'Support']
+  return SRC.map(([name, description, on], i) => ({
+    id: `scimx_${pad(i + 1, 3)}`,
+    name, description, status: on,
+    tenantUrl: `https://${name.toLowerCase()}.cloud.databricks.com/api/2.0/accounts/scim/v2`,
+    secretTokenSet: on,
+    secretTokenUpdatedAt: on ? ago(20 + r() * 300) : null,
+    /* Velto's own default mapping: the two every provider needs. */
+    userMapping: [
+      { type: 'Direct', local: 'username', fallback: '', scim: 'userName' },
+      { type: 'Direct', local: 'email', fallback: '', scim: 'emails[type eq "work"].value' },
+      { type: 'Direct', local: 'first_name', fallback: '', scim: 'name.givenName' },
+      { type: 'Direct', local: 'last_name', fallback: '', scim: 'name.familyName' }
+    ],
+    groupMapping: [
+      { type: 'Direct', local: 'name', fallback: '', scim: 'displayName' },
+      { type: 'Direct', local: 'members', fallback: '', scim: 'members' }
+    ],
+    groups: on ? GROUPS.slice(0, 1 + Math.floor(r() * 3)) : [],
+    lastSyncedAt: on ? ago(r() * 14) : null
+  }))
+}
+
+export function seedScimSyncLogs (profiles) {
+  const out = []
+  let n = 0
+  for (const p of profiles) {
+    if (!p.lastSyncedAt) continue
+    for (const g of p.groups) {
+      out.push({
+        id: `scimlog_${pad(++n, 4)}`, profileId: p.id, type: 'group', name: g,
+        operation: 'create', status: 'success', at: p.lastSyncedAt,
+        message: 'Group created successfully on SCIM provider'
+      })
+    }
+    /* One failure per tenant, because a log where everything succeeded
+       teaches nobody what a failure looks like. */
+    if (chance(0.35)) {
+      out.push({
+        id: `scimlog_${pad(++n, 4)}`, profileId: p.id, type: 'user',
+        name: 'contractor.temp', operation: 'update', status: 'failed',
+        at: p.lastSyncedAt,
+        message: 'Provider rejected the payload: userName already exists'
+      })
+    }
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at))
+}
+
+function oauthRows (prefix, names) {
+  return names.map(([name, uri], i) => ({
+    id: `${prefix}_${pad(i + 1, 3)}`,
+    name,
+    clientId: uuid(),
+    clientSecretSet: true,
+    clientSecretUpdatedAt: ago(30 + r() * 400),
+    redirectUris: [uri],
+    postLogoutUris: chance(0.4) ? [uri.replace(/\/[^/]*$/, '/logout')] : []
+  }))
+}
+
+export function seedOauthServices () {
+  return oauthRows('oa', [
+    ['zendesk', 'https://accounts.cloud.databricks.com/oidc/consume'],
+    ['oauthdebugger', 'https://oauthdebugger.com/debug'],
+    ['oauth2', 'https://instasafe.myfreshworks.com/sp/OAUTH/962343122010690857/callback'],
+    ['freshwork', 'https://isa1.myfreshworks.com/sp/OAUTH/860063758629978387/callback']
+  ])
+}
+
+export function seedOpenidServices () {
+  return oauthRows('oi', [
+    ['grafana', 'https://grafana.velto.internal/login/generic_oauth'],
+    ['harbor', 'https://harbor.velto.internal/c/oidc/callback'],
+    ['vault', 'https://vault.velto.internal/ui/vault/auth/oidc/oidc/callback'],
+    ['oidcdebugger', 'https://oidcdebugger.com/debug']
+  ])
+}
+
+export function seedSamlIdps () {
+  const SRC = [
+    ['showcase-velto', 'IAMShowcase', 'https://sptest.iamshowcase.com/acs', 'Custom'],
+    ['mocksamlscs', 'https://saml.sp.com', 'https://saml.sp.com/api/saml/sso', 'Custom'],
+    ['sxcvb', 'IAMShowcase', 'https://sptest.iamshowcase.com/acs', 'Custom'],
+    ['freshworknewshree', 'https://isa1-860063758629978387.myfreshworks.com/sp/SAML/1013028/metadata',
+      'https://isa1-860063758629978387.myfreshworks.com/sp/SAML/1013028/callback', 'Custom'],
+    ['1normalidp', 'urn:federation:MicrosoftOnline',
+      'https://login.microsoftonline.com/login.srf', 'Azure'],
+    ['googleqa', 'https://accounts.google.com/samlrp/02fpsfi52p96tj4',
+      'https://accounts.google.com/samlrp/acs?rpid=02fpsfi52p96tj4', 'Google'],
+    ['velto222', 'urn:federation:MicrosoftOnlines',
+      'https://login.microsoftonline.com/login.srf', 'Azure'],
+    ['newnoorsaml', 'https://instasafe-1010917410296239211.myfreshworks.com/sp/SAML/1010917/metadata',
+      'https://instasafe-1010917410296239211.myfreshworks.com/sp/SAML/1010917/callback', 'Custom'],
+    ['shankarnew', 'urn:federation:MicrosoftOnlines',
+      'https://login.microsoftonline.com/login.srf', 'Azure'],
+    ['fedIDP', 'urn:federation:MicrosoftOnlines',
+      'https://login.microsoftonline.com/login.srf', 'Azure']
+  ]
+  return SRC.map(([name, spEntityId, spAcsUrl, spType], i) => ({
+    id: `saml_${pad(i + 1, 3)}`,
+    name, spType, spEntityId, spAcsUrl,
+    overrideIdpEntityId: false,
+    idpEntityId: '',
+    /* Azure and Google pin these themselves, so velto leaves them unset. */
+    nameidAttribute: spType === 'Custom' ? pick(['Email', 'Persistent', 'Unspecified']) : '',
+    nameidValue: spType === 'Custom' ? pick(['Email', 'Username', 'UPN']) : '',
+    customAttributes: chance(0.4)
+      ? [{ name: 'Email', standard: true, value: 'Email' }]
+      : [],
+    spCertificate: '',
+    ipFilter: chance(0.25) ? '10.20.0.0/16,122.176.64.0/24' : '',
+    ipFilterExcludedGroups: [],
+    /* A certificate that expires is the thing this screen exists to warn
+       about, so one of them is inside ninety days. */
+    expiresAt: new Date(Date.now() + (i === 2 ? 71 : 180 + r() * 600) * 86400000).toISOString(),
+    keystoreUpdatedAt: ago(100 + r() * 500)
+  }))
+}
+
+export function seedRadiusServices () {
+  const SRC = [
+    ['google', '172.31.23.4'], ['mum-wifi-ctrl', '10.20.4.10'],
+    ['blr-vpn-concentrator', '10.30.1.5'], ['lab-switch', '10.40.9.2']
+  ]
+  return SRC.map(([name, clientIp], i) => ({
+    id: `rad_${pad(i + 1, 3)}`,
+    name, clientIp,
+    clientSecretSet: true,
+    clientSecretUpdatedAt: ago(40 + r() * 400)
+  }))
+}
+
+export function seedDevicePolicies () {
+  return [
+    ['Encrypt contractor laptops', 'Windows', 'Config', 'Enabled',
+      { configTemplate: 'Disk Encryption', diskEncryption: 'Enable' },
+      'BitLocker on every machine a contractor signs in from'],
+    ['Corporate wallpaper', 'Windows', 'Config', 'Enabled',
+      { configTemplate: 'Wallpaper', configFile: 'corp-wallpaper-2026.png' },
+      'Pushed on check-in'],
+    ['Office WiFi', 'Windows', 'Config', 'Disabled',
+      { configTemplate: 'WiFi', wifiSsid: 'InstaSafe-Corp', wifiPasswordSet: true },
+      'Staged for the Mumbai office move'],
+    ['Hardware inventory', 'Windows', 'Config', 'Enabled',
+      { configTemplate: 'Device Inventory' },
+      'Collected on every check-in'],
+    ['Disable USB storage', 'Windows', 'Registry', 'Enabled',
+      { value: 'HKLM\SYSTEM\CurrentControlSet\Services\USBSTOR\Start = 4' },
+      'Registry, so Windows only'],
+    ['Require FileVault', 'macOS', 'Script', 'Enabled',
+      { value: 'fdesetup status | grep -q "FileVault is On"' },
+      'The macOS equivalent of the BitLocker policy above']
+  ].map(([name, os, type, status, extra, description], i) => ({
+    id: `dp_${pad(i + 1, 4)}`,
+    name, os, type, status, description,
+    ...extra,
+    createdAt: ago(120 + r() * 200)
+  }))
+}
+
+export function seedUserProviders () {
+  return [
+    ['azuread', {
+      name: 'corp-azure', domain: 'corp.example.com',
+      tenantId: '9b41e7c2-55af-4d18-bd0e-1a7c3f6e2d84',
+      clientId: 'f466474e-422e-48ba-ac83-68c8f77caf0a',
+      groups: 'Engineering,Finance,Operations', authType: 'Certificate'
+    }],
+    ['azuread', {
+      name: 'contractors-azure', domain: 'ext.example.com',
+      tenantId: '71f74973-f8ae-402f-8267-0b94625d6d1d',
+      clientId: '008e455c-ccbb-4f48-a6da-7ea4b554a970',
+      groups: 'Contractors', authType: 'Password + Certs'
+    }],
+    ['google', {
+      name: 'workspace-primary', domain: 'example.com',
+      adminUser: 'directory-reader@example.com',
+      authType: 'Certificate', groups: 'Marketing,Sales'
+    }]
+  ].map(([type, row], i) => ({
+    id: `up_${pad(i + 1, 4)}`,
+    type,
+    ...row,
+    lastSyncAt: ago(2),
+    createdAt: ago(300)
+  }))
+}
+
+export function seedAuthProfiles () {
+  const rows = [
+    // Active Directory — Profile Name · Domain · Primary Server IP · Backup Server IP
+    ['active-directory', { name: 'corp-ad-primary', domain: 'corp.instasafe.com', primaryServerIp: '10.20.4.11', backupServerIp: '10.20.4.12' }],
+    ['active-directory', { name: 'contractors-ad', domain: 'ext.instasafe.com', primaryServerIp: '10.20.9.31', backupServerIp: '10.20.9.32' }],
+
+    // OpenLDAP — adds Port and Protocol
+    /* Protocol is TCP on every row because the field is fixed in the product.
+       The rest are velto's columns: bind user, auth type, base DN and filter
+       all live on the form rather than in the list. */
+    ['ldap', { name: 'openldap-eu', domain: 'eu.ldap.example.com', primaryServerIp: '10.44.1.8', backupServerIp: '10.44.1.9', bindUser: 'cn=admin,dc=example,dc=com', authType: 'Certificate', baseDn: 'dc=example,dc=com', filter: '(|(gidNumber=48681))', port: 389, protocol: 'TCP', usernameAttribute: 'UID' }],
+    ['ldap', { name: 'openldap-lab', domain: 'lab.ldap.example.com', primaryServerIp: '10.44.7.2', backupServerIp: '10.44.7.2', bindUser: 'cn=admin,dc=lab,dc=example,dc=com', authType: 'Password + Certs', baseDn: 'dc=lab,dc=example,dc=com', filter: '(&(objectClass=posixAccount))', port: 389, protocol: 'TCP', usernameAttribute: 'UID' }],
+
+    // RADIUS — Name · RADIUS Server IP · Backup RADIUS Server IP · Port
+    ['radius', { name: 'nps-mumbai', radiusServerIp: '10.61.3.40', backupRadiusServerIp: '10.61.3.41', port: 1812 }],
+    ['radius', { name: 'nps-london', radiusServerIp: '10.62.3.40', backupRadiusServerIp: '10.62.3.40', port: 1812 }],
+
+    // SAML — Name · Integration Type · IDP EntityId · IDP Sign-In URL
+    /* The certificate is a real PEM shape with invented contents: velto's
+       form holds the IdP's signing certificate, and a profile without one
+       cannot verify an assertion. */
+    ['saml', { name: 'okta-workforce', integrationType: 'SAML2.0', idpEntityId: 'http://www.okta.com/exk1f2g3h4IJKLMN5o6', idpCertificate: SAML_DEMO_CERT, idpSignInUrl: 'https://instasafe.okta.com/app/instasafe_i365/exk1f2g3h4IJKLMN5o6/sso/saml', idpSignOutUrl: 'https://instasafe.okta.com/app/instasafe_i365/exk1f2g3h4IJKLMN5o6/slo/saml', nameIdAttribute: 'Email' }],
+    ['saml', { name: 'entra-contractors', integrationType: 'SAML2.0', idpEntityId: 'https://sts.windows.net/9b41e7c2-55af-4d18-bd0e-1a7c3f6e2d84/', idpCertificate: SAML_DEMO_CERT, idpSignInUrl: 'https://login.microsoftonline.com/9b41e7c2-55af-4d18-bd0e-1a7c3f6e2d84/saml2', idpSignOutUrl: 'https://login.microsoftonline.com/9b41e7c2-55af-4d18-bd0e-1a7c3f6e2d84/saml2', nameIdAttribute: 'Username' }],
+
+    // OAuth2 — Name · Client Id · Redirect URI
+    /* Provider decides the shape: only Azure carries a tenant id. */
+    ['oauth', { name: 'google-workspace', provider: 'Google', clientId: '81427366104-k3m9rv2qf7hs1bd8e4ucnp0ga6tjlw5x.apps.googleusercontent.com', redirectUri: 'https://instasafe-console-demo.netlify.app/oauth2/callback' }],
+    ['oauth', { name: 'entra-workforce', provider: 'Azure', tenantId: '9b41e7c2-55af-4d18-bd0e-1a7c3f6e2d84', clientId: '008e455c-ccbb-4f48-a6da-7ea4b554a970', redirectUri: 'https://instasafe-console-demo.netlify.app/oauth2/callback' }],
+
+    // OpenID — Name · Client Id · Issuer URL
+    ['openid', { name: 'entra-oidc', clientId: '2ec521d5-20dd-4410-9493-b54523d837d8', scopes: 'openid profile email', issuerUrl: 'https://login.microsoftonline.com/9b41e7c2-55af-4d18-bd0e-1a7c3f6e2d84/v2.0', redirectUri: 'https://instasafe-console-demo.netlify.app/openid/callback' }],
+    ['openid', { name: 'auth0-partners', clientId: 'Pew0wevZV6VToxCKmvjKPLdBigT2Lo4r', scopes: 'openid profile email', issuerUrl: 'https://instasafe-partners.eu.auth0.com/', redirectUri: 'https://instasafe-console-demo.netlify.app/openid/callback' }],
+
+    // Passwordless — Name · Primary Auth · Fallback Authn
+    /* Velto's own three primaries and three fallbacks. Kerberos is a primary
+       only, Password a fallback only. */
+    ['passwordless', { name: 'engineering-keys', primaryAuth: 'Hardware Key', fallbackAuth: 'Password' }],
+    ['passwordless', { name: 'domain-desktops', primaryAuth: 'Kerberos', fallbackAuth: 'Digital Certificate' }]
+  ]
+  return rows.map(([type, fields], i) => ({
+    id: `ap_${pad(i + 1, 4)}`,
+    type,
+    status: 'configured',
+    users: Math.floor(r() * 600),
+    createdAt: ago(300 + r() * 300),
+    ...fields
+  }))
+}
+
+export function seedDeviceChecks () {
+  return [
+    ['Disk encryption required','diskEncryption',true,'critical'],
+    ['Antivirus running','antivirus',true,'critical'],
+    ['Firewall enabled','firewall',true,'high'],
+    ['OS up to date','osUpToDate',true,'medium'],
+    ['Screen lock enabled','screenLock',true,'medium'],
+    ['Device not jailbroken','jailbroken',false,'critical']
+  ].map(([name, postureKey, expect, severity], i) => ({
+    /* postureKey, not key: it is the field inside devices.posture that this
+       check reads, and it maps to the posture_key column. Calling it "key"
+       meant the column mapper dropped it and the insert failed on NOT NULL. */
+    id: `dc_${pad(i + 1, 4)}`, name, postureKey, expect, severity,
+    enabled: true, createdAt: ago(250)
+  }))
+}
+
+export function seedTimeSchedules () {
+  /* A night shift is in here on purpose: its window wraps midnight, which is
+     the case a naive start<=now<=end comparison gets wrong. */
+  return [
+    { id: 'ts_0001', name: 'Business hours', days: [1, 2, 3, 4, 5],
+      startTime: '09:00', endTime: '18:30',
+      timezone: '(UTC+05:30) Indian Standard Time', createdAt: ago(300) },
+    { id: 'ts_0002', name: 'Extended hours', days: [1, 2, 3, 4, 5, 6],
+      startTime: '07:00', endTime: '22:00',
+      timezone: '(UTC+05:30) Indian Standard Time', createdAt: ago(300) },
+    { id: 'ts_0003', name: 'Night shift', days: [1, 2, 3, 4, 5],
+      startTime: '22:00', endTime: '06:00',
+      timezone: '(UTC+05:30) Indian Standard Time', createdAt: ago(280) },
+    { id: 'ts_0004', name: 'Weekends only', days: [6, 0],
+      startTime: '08:00', endTime: '20:00',
+      timezone: '(UTC+00:00) Coordinated Universal Time', createdAt: ago(260) },
+    { id: 'ts_0005', name: 'Always', days: [0, 1, 2, 3, 4, 5, 6],
+      startTime: '00:00', endTime: '23:59',
+      timezone: '(UTC+00:00) Coordinated Universal Time', createdAt: ago(300) }
+  ]
+}
+
+export function seedGeoFences () {
+  return CITIES.slice(0, 4).map(([city, cc, lat, lon], i) => ({
+    id: `gf_${pad(i + 1, 4)}`,
+    name: `${city} office`,
+    city, countryCode: cc, lat, lon,
+    /* Metres, as velto stores them, and varied on purpose: 250m is a
+       building, 1.2km a campus, 5km a city centre. A column of identical
+       numbers teaches nobody what the field is for. */
+    radiusMetres: [250, 1200, 500, 5000][i] || 500,
+    action: 'allow', enabled: true, createdAt: ago(200)
+  }))
+}
+
+export function seedEvents (users, count = 794, apps = []) {
+  const kinds = [
+    ['auth.login.success','info'], ['auth.login.failed','warning'],
+    ['auth.mfa.success','info'], ['auth.mfa.failed','warning'],
+    ['device.enrolled','info'], ['device.approved','info'], ['device.rejected','warning'],
+    ['device.check.failed','warning'], ['access.granted','info'], ['access.denied','warning'],
+    ['user.created','info'], ['user.suspended','warning'], ['rule.updated','info'],
+    ['session.started','info'], ['session.ended','info']
+  ]
+  const out = []
+  for (let i = count; i >= 1; i--) {
+    const u = users[1 + Math.floor(r() * (users.length - 1))]
+    const [type, severity] = pick(kinds)
+    const [city] = pick(CITIES)
+    out.push({
+      id: `evt_${pad(count - i + 1, 6)}`,
+      type, severity,
+      actor: u.username,
+      /* The resource the event is about. A denial that does not name what was
+         denied cannot be reported on, and "Top blocked services" is exactly
+         that report. */
+      target: apps.length && (type === 'access.denied' || type === 'access.granted')
+        ? pick(apps).name : null,
+      message: describeEvent(type, u),
+      ip: `49.${Math.floor(r() * 254)}.${Math.floor(r() * 254)}.${Math.floor(r() * 254)}`,
+      city,
+      at: ago(r() * 30)
+    })
+  }
+  /* One deliberate impossible-travel pair.
+     The anomaly detector is real - it computes a haversine between the two
+     cities and fires above about 900 km/h - but a randomly generated log
+     almost never produces two sign-ins by the same user, far enough apart,
+     close enough together. Without this the best detection in the product
+     has nothing to demonstrate on, which is the same trap the session
+     controls fell into. The pair below is ~7,000 km in 2 hours. */
+  const traveller = users[3] || users[1]
+  const base = Date.now() - 5 * 3600_000
+  out.push({
+    id: 'evt_travel_1', type: 'auth.login.success', severity: 'info',
+    actor: traveller.username, actorId: traveller.id,
+    message: `${traveller.firstName} ${traveller.lastName} signed in`,
+    ip: '49.205.12.8', city: 'Bengaluru',
+    at: new Date(base).toISOString()
+  })
+  out.push({
+    id: 'evt_travel_2', type: 'auth.login.success', severity: 'info',
+    actor: traveller.username, actorId: traveller.id,
+    message: `${traveller.firstName} ${traveller.lastName} signed in`,
+    ip: '81.2.69.144', city: 'London',
+    at: new Date(base + 2 * 3600_000).toISOString()
+  })
+
+  return out.sort((a, b) => b.at.localeCompare(a.at))
+}
+
+function describeEvent (type, u) {
+  const n = `${u.firstName} ${u.lastName}`
+  return {
+    'auth.login.success': `${n} signed in`,
+    'auth.login.failed': `Failed sign-in for ${u.username}`,
+    'auth.mfa.success': `${n} passed MFA`,
+    'auth.mfa.failed': `${n} failed MFA`,
+    'device.enrolled': `${n} enrolled a new device`,
+    'device.approved': `Device approved for ${n}`,
+    'device.rejected': `Device rejected for ${n}`,
+    'device.check.failed': `Posture check failed for ${n}`,
+    'access.granted': `${n} reached an application`,
+    'access.denied': `${n} was denied access`,
+    'user.created': `${n} was created`,
+    'user.suspended': `${n} was suspended`,
+    'rule.updated': `An access rule was updated`,
+    'session.started': `${n} started a session`,
+    'session.ended': `${n} ended a session`
+  }[type] || type
+}
+
+/**
+ * Sessions: the live ones, and the history behind them.
+ *
+ * Two corrections live in here.
+ *
+ * First, these were all seeded inside a ten-hour window, so every usage
+ * report and every Today/Week/Month toggle returned the same answer and the
+ * period control was decoration.
+ *
+ * Second, and less obvious: the fix produced numbers that could not both be
+ * true. 318 sessions open right now against roughly thirty starting per day
+ * is not a busy tenant, it is an impossible one — if thirty sessions start a
+ * day and a few hundred are open at any moment, they would each have to run
+ * for a week. The charts showed it honestly, as a flat line with one spike on
+ * today, and the flat part was the lie.
+ *
+ * So the concurrency now follows from the volume rather than being picked
+ * independently: about a hundred sessions start per working day, they run a
+ * few hours, and a bit over a hundred are open at any given moment. Weekends
+ * dip to a third, which gives the line a shape that means something.
+ */
+export function seedSessions (users, apps) {
+  const mk = (i, startedAt, active) => {
+    const u = users[1 + Math.floor(r() * (users.length - 1))]
+    const a = pick(apps)
+    const [city] = pick(CITIES)
+    // a working session, not a round number: 3 minutes to about 5 hours
+    const durationMin = active ? null : Math.max(3, Math.round(r() * r() * 310) + 3)
+    return {
+      id: `ses_${pad(i + 1, 5)}`,
+      userId: u.id, username: u.username,
+      applicationId: a.id, application: a.name, type: a.type,
+      gateway: pick(['gw-mum-01', 'gw-blr-01', 'gw-sin-01']),
+      city,
+      startedAt,
+      endedAt: active ? null : new Date(new Date(startedAt).getTime() + durationMin * 60000).toISOString(),
+      durationMin,
+      bytesIn: Math.floor(r() * 90_000_000),
+      bytesOut: Math.floor(r() * 30_000_000),
+      status: active ? 'active' : 'ended'
+    }
+  }
+
+  const out = []
+  const now = Date.now()
+  const DAY = 86400000
+
+  /* Thirty days of history, with a weekend trough. Sessions cluster through
+     the working day rather than landing uniformly across midnight. */
+  for (let d = 30; d >= 1; d--) {
+    const dayStart = new Date(now - d * DAY)
+    dayStart.setHours(0, 0, 0, 0)
+    const weekend = [0, 6].includes(dayStart.getDay())
+    const n = Math.round((weekend ? 34 : 104) * (0.82 + r() * 0.36))
+    for (let k = 0; k < n; k++) {
+      // a bell around mid-morning and mid-afternoon rather than a flat day
+      const hour = 7 + Math.floor((r() + r()) / 2 * 11)
+      const at = new Date(dayStart.getTime() + hour * 3600000 + Math.floor(r() * 3600000))
+      out.push(mk(out.length, at.toISOString(), false))
+    }
+  }
+
+  /* What is open right now. Follows from the volume above: a hundred-odd
+     starts a day at a few hours each leaves roughly this many running. */
+  const live = Math.round(112 * (0.9 + r() * 0.2))
+  for (let k = 0; k < live; k++) {
+    out.push(mk(out.length, ago(r() * 0.28), true))
+  }
+  return out
+}
+
+/**
+ * Rate-limiter lockouts for /limit-exceeders.
+ *
+ * Velto's own list is empty, which is the healthy state and also a dead
+ * screen to look at, so a handful are seeded: two still in force and one
+ * already expired, because an expired row that still sits in the table is
+ * the case the column rendering has to get right.
+ *
+ * `username` is nullable on purpose. A lockout is keyed on the source
+ * address, and the commonest real one is someone spraying usernames that do
+ * not exist — there is no account to name.
+ */
+export function seedLockouts () {
+  const now = Date.now()
+  const mins = (n) => new Date(now + n * 60000).toISOString()
+  return [
+    { id: 'lck_0001', name: '203.0.113.47', ip: '203.0.113.47',
+      username: 'rohan.mehta', attempts: 6,
+      blockedAt: new Date(now - 4 * 60000).toISOString(), blockedUntil: mins(26) },
+    { id: 'lck_0002', name: '198.51.100.12', ip: '198.51.100.12',
+      username: null, attempts: 41,
+      blockedAt: new Date(now - 18 * 60000).toISOString(), blockedUntil: mins(12) },
+    { id: 'lck_0003', name: '192.0.2.88', ip: '192.0.2.88',
+      username: 'laura.dubois', attempts: 5,
+      blockedAt: new Date(now - 95 * 60000).toISOString(), blockedUntil: mins(-35) }
+  ]
+}
+
+/**
+ * The software-package inventory behind /software-packages.
+ *
+ * Velto's own list is a winget-style catalogue of whatever agents have
+ * reported — the first page is Korean consumer software (벅스, 네이버 웨일,
+ * League of Legends KR), which is a useful reminder that this is an
+ * observation of a real estate and not a curated list. Modelled on that:
+ * a mix of corporate tooling and the consumer software that actually shows
+ * up, because the screen is only interesting when it contains things an
+ * admin did not expect.
+ */
+export function seedSoftwarePackages () {
+  const rows = [
+    ['Google Chrome',            '131.0.6778.86', 'windows', 'Google LLC',             'Google.Chrome',               'Active'],
+    ['Mozilla Firefox',          '133.0.3',       'windows', 'Mozilla',                'Mozilla.Firefox',             'Active'],
+    ['Microsoft Teams',          '24285.3815',    'windows', 'Microsoft Corporation',  'Microsoft.Teams',             'Active'],
+    ['Zoom Workplace',           '6.2.11',        'windows', 'Zoom Communications',    'Zoom.Zoom',                   'Active'],
+    ['Slack',                    '4.41.105',      'macos',   'Slack Technologies',     'SlackTechnologies.Slack',     'Active'],
+    ['Visual Studio Code',       '1.96.2',        'windows', 'Microsoft Corporation',  'Microsoft.VisualStudioCode',  'Active'],
+    ['Notepad++',                '8.7.1',         'windows', 'Notepad++ Team',         'Notepad++.Notepad++',         'Active'],
+    ['7-Zip',                    '24.09',         'windows', 'Igor Pavlov',            '7zip.7zip',                   'Active'],
+    ['PuTTY',                    '0.82',          'windows', 'Simon Tatham',           'PuTTY.PuTTY',                 'Active'],
+    ['WinSCP',                   '6.3.6',         'windows', 'Martin Prikryl',         'WinSCP.WinSCP',               'Active'],
+    ['AnyDesk',                  '8.1.3',         'windows', 'AnyDesk Software GmbH',  'AnyDeskSoftwareGmbH.AnyDesk', 'Disabled'],
+    ['TeamViewer',               '15.59.4',       'windows', 'TeamViewer Germany',     'TeamViewer.TeamViewer',       'Disabled'],
+    ['Tor Browser',              '14.0.3',        'windows', 'The Tor Project',        'TorProject.TorBrowser',       'Disabled'],
+    ['BitTorrent',               '7.11.0',        'windows', 'BitTorrent Inc.',        'BitTorrent.BitTorrent',       'Disabled'],
+    ['CrowdStrike Falcon',       '7.20.19507',    'windows', 'CrowdStrike, Inc.',      'CrowdStrike.Falcon',          'Active'],
+    ['Docker Desktop',           '4.37.1',        'macos',   'Docker Inc.',            'Docker.DockerDesktop',        'Active'],
+    ['Postman',                  '11.21.0',        'macos',   'Postman, Inc.',          'Postman.Postman',             'Active'],
+    ['VLC media player',         '3.0.21',        'linux',   'VideoLAN',               'VideoLAN.VLC',                'Active'],
+    ['Spotify',                  '1.2.53',        'macos',   'Spotify AB',             'Spotify.Spotify',             'Active'],
+    ['WhatsApp',                 '2.2451.4',      'windows', 'WhatsApp LLC',           'WhatsApp.WhatsApp',           'Active']
+  ]
+  return rows.map(([name, version, platform, publisher, packageId, status], i) => ({
+    id: `pkg_${pad(i + 1)}`, name, version, platform, publisher, packageId, status
+  }))
+}
+
+/**
+ * Risk profiles.
+ *
+ * Seeded at last: the screen was empty, so a feature that decides what the
+ * console does about a stolen credential showed nothing at all.
+ *
+ * The four below are deliberately graded, because the interesting thing about
+ * this screen is the gap between noticing and acting. Mailing an admin about
+ * a browser switch is reasonable; suspending an account for one is not, and
+ * the difference is the whole decision an admin makes here.
+ */
+export function seedRiskProfiles () {
+  return [
+    { id: 'rp_0001', name: 'Credential theft signals',
+      types: ['IP Switch', 'Browser Switch', 'Platform Switch', 'Login from Different Locations'],
+      action: 'Deny Access', createdAt: ago(200 + r() * 200) },
+    { id: 'rp_0002', name: 'Failed authentication',
+      types: ['Login Failure', 'MFA Failure'],
+      action: 'Email Admin', createdAt: ago(200 + r() * 200) },
+    { id: 'rp_0003', name: 'Untrusted device',
+      types: ['Device Check Failure', 'Device Bind Failure', 'Geo Bind Failure'],
+      action: 'Disconnect User', createdAt: ago(200 + r() * 200) },
+    { id: 'rp_0004', name: 'Policy violation',
+      types: ['User Access of Blocked Apps', 'Suspicious Activity', 'Long Inactivity Login'],
+      action: 'Suspend User', createdAt: ago(200 + r() * 200) }
+  ]
+}
