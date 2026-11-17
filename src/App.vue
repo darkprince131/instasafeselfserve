@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import Header from './components/shell/Header.vue'
 import Sidebar from './components/shell/Sidebar.vue'
 import TrialPanel from './components/trial/TrialPanel.vue'
+import TrialExpiry from './components/trial/TrialExpiry.vue'
 import Toasts from './components/ui/Toasts.vue'
 import Tour from './components/shell/Tour.vue'
 import { setPageCss } from './lib/page-css.js'
@@ -45,6 +46,10 @@ provide('startTour', (id) => id ? tourRef.value?.start(id) : tourRef.value?.open
 const bare = computed(() => route.meta?.bare === true)
 watch(bare, (v) => setPageCss(v), { immediate: true })
 
+/* Dismissing the "three days left" banner is a per-viewer convenience and
+   nothing else needs to know about it, so it lives in this session only. */
+const warningDismissed = ref(false)
+
 /* Flipping an empty-state switch changes what every list would fetch, and
    screens fetch on mount. Remounting the view by key is what navigation
    already does, so nothing new has to be correct. */
@@ -70,13 +75,13 @@ onMounted(refreshStats)
 
     <div class="content-wrapper">
       <section>
+        <TrialExpiry :warning-dismissed="warningDismissed" @dismiss="warningDismissed = true" />
+        <!-- No <Suspense>. No view uses async setup — the route components
+             are lazy chunks, which vue-router already handles — and wrapping
+             them warned "<Suspense> slots expect a single root node" on all
+             69 routes, which buries a real warning when one appears. -->
         <RouterView v-slot="{ Component }">
-          <Suspense>
-            <component :is="Component" :key="route.path + ':' + stateEpoch" @changed="refreshStats" />
-            <template #fallback>
-              <div class="container-fluid"><div class="load-height" aria-busy="true" /></div>
-            </template>
-          </Suspense>
+          <component :is="Component" :key="route.path + ':' + stateEpoch" @changed="refreshStats" />
         </RouterView>
       </section>
     </div>

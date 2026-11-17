@@ -397,30 +397,44 @@ defineExpose({ start, openMenu })
 </template>
 
 <style scoped>
+/*
+ * The guided flows wear Bootstrap's own chrome now.
+ *
+ * The redesign gave them a floating panel of their own, with its own radius,
+ * its own shadow and violet for the current step - three new idioms on a
+ * surface that sits over every screen in the console. Production has none of
+ * them, so this is built from what production already loads: the menu takes
+ * `.modal-content`'s values, the docked panel takes `.popover`'s (header
+ * band, body, border, arrow colour), and the spotlight ring is production's
+ * coral rather than violet. Nothing here invents a shape.
+ */
 .i-tour-menu {
   position: fixed; z-index: 90; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: min(540px, calc(100vw - 28px)); max-height: calc(100vh - 56px); overflow-y: auto;
-  background: var(--i-canvas); border-radius: var(--i-r-float); box-shadow: var(--i-float-lg);
+  background: var(--bs-modal-bg, #fff);
+  border: var(--bs-modal-border-width, 1px) solid var(--bs-modal-border-color, rgba(0, 0, 0, .175));
+  border-radius: var(--bs-modal-border-radius, .5rem);
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
 }
 .i-tour-card {
   display: flex; align-items: flex-start; gap: 12px; width: 100%;
   padding: 12px; border: 0; border-radius: var(--i-r-ctl);
   background: transparent; text-align: left; cursor: pointer; font: inherit;
 }
-.i-tour-card:hover { background: var(--i-tint); }
-.i-tour-card.is-primary { background: var(--i-v50); margin-bottom: 4px; }
-.i-tour-title { display: block; font-size: 13px; font-weight: 500; color: var(--i-ink); }
-.i-tour-blurb { display: block; font-size: 12px; color: var(--i-mute); margin-top: 2px; }
+.i-tour-card:hover { background: var(--bs-tertiary-bg, #f8f9fa); }
+.i-tour-card.is-primary { background: var(--bs-tertiary-bg, #f8f9fa); margin-bottom: 4px; }
+.i-tour-title { display: block; font-size: .875rem; font-weight: 700; color: var(--i-head); }
+.i-tour-blurb { display: block; font-size: .75rem; color: var(--i-mute); margin-top: 2px; }
 .i-tour-mins {
-  flex: none; font-size: 10.5px; color: var(--i-mute);
-  border: 1px solid var(--i-rule-strong); border-radius: 99px; padding: 2px 8px;
+  flex: none; font-size: .75em; font-weight: 700; color: #fff;
+  background: #6c757d; border-radius: 50rem; padding: .35em .65em;
 }
 
 /* The spotlight dims around the target without covering it, and takes no
    pointer events, because every step here needs the page underneath. */
 .i-spot {
   position: fixed; z-index: 88; pointer-events: none; border-radius: var(--i-r-ctl);
-  box-shadow: 0 0 0 9999px rgba(20, 20, 24, .42), 0 0 0 2px var(--i-v500);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5), 0 0 0 2px #ef5137;
   transition: top .18s, left .18s, width .18s, height .18s;
 }
 
@@ -429,14 +443,19 @@ defineExpose({ start, openMenu })
   position: fixed; z-index: 91; right: 18px;
   /* Clear of the host's deploy badge — see lib/badge-gap.js. */
   bottom: calc(18px + var(--i-badge-h, 0px));
-  width: min(372px, calc(100vw - 28px));
+  width: min(var(--bs-popover-max-width, 372px), calc(100vw - 28px));
   max-height: calc(100vh - 36px); display: flex; flex-direction: column;
-  background: var(--i-canvas); border-radius: var(--i-r-float);
-  box-shadow: var(--i-float-lg); overflow: hidden;
+  background: var(--bs-popover-bg, #fff);
+  border: var(--bs-popover-border-width, 1px) solid var(--bs-popover-border-color, rgba(0, 0, 0, .175));
+  border-radius: var(--bs-popover-border-radius, .5rem);
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15); overflow: hidden;
 }
+/* `.popover-header`: the grey band with its own bottom rule. */
 .i-flow-head {
   display: flex; align-items: center; gap: 10px; flex: none;
-  padding: 11px 10px 11px 15px; border-bottom: 1px solid var(--i-rule);
+  padding: var(--bs-popover-header-padding-y, .5rem) var(--bs-popover-header-padding-x, 1rem);
+  background-color: var(--bs-popover-header-bg, #f0f0f0);
+  border-bottom: var(--bs-popover-border-width, 1px) solid var(--bs-popover-border-color, rgba(0, 0, 0, .175));
   cursor: grab; touch-action: none; user-select: none;
 }
 .i-flow.is-dragging .i-flow-head { cursor: grabbing; }
@@ -447,11 +466,19 @@ defineExpose({ start, openMenu })
    that eases toward the cursor feels broken. */
 .i-flow { transition: left .32s cubic-bezier(.2,.8,.3,1), top .32s cubic-bezier(.2,.8,.3,1); }
 @media (prefers-reduced-motion: reduce) { .i-flow { transition: none; } }
-.i-flow-head > i.fa-solid { color: var(--i-v600); font-size: 14px; }
-.i-flow-title { font-size: 13px; font-weight: 500; color: var(--i-ink); }
-.i-flow-prog { font-size: 11px; color: var(--i-mute); }
+.i-flow-head > i.fa-solid { color: #ef5137; font-size: 14px; }
+.i-flow-title {
+  font-size: var(--bs-popover-header-font-size, 1rem); font-weight: 700; color: var(--i-head);
+}
+.i-flow-prog { font-size: .75rem; color: var(--i-mute); }
 .i-flow.is-min .i-flow-head { border-bottom: 0; }
-.i-flow-body { overflow-y: auto; padding: 13px 15px 15px; }
+/* `.popover-body` */
+.i-flow-body {
+  overflow-y: auto;
+  padding: var(--bs-popover-body-padding-y, 1rem) var(--bs-popover-body-padding-x, 1rem);
+  color: var(--bs-popover-body-color, #212529);
+  font-size: var(--bs-popover-font-size, .875rem);
+}
 
 .i-flow-intro { font-size: 12px; color: var(--i-mute); margin: 0 0 12px; line-height: 1.55; }
 
