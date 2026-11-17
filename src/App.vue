@@ -42,9 +42,17 @@ provide('stats', stats)
 provide('openInbox', () => { trialOpen.value = true })
 provide('startTour', (id) => id ? tourRef.value?.start(id) : tourRef.value?.openMenu())
 
-/** Sign-in, sign-up and the portal bring their own page; see page-css.js. */
+/** Sign-in, sign-up and the portal bring their own page. */
 const bare = computed(() => route.meta?.bare === true)
-watch(bare, (v) => setPageCss(v), { immediate: true })
+
+/**
+ * pagescss.css goes on only where production serves it — the signed-out
+ * pages. Not on every bare route: the end-user portal is bare too and has
+ * its own stylesheet, which pagescss would repaint from under it by
+ * redefining `body`, `.form-control` and `.btn-primary`.
+ */
+const wantsPageCss = computed(() => route.meta?.pageCss === true)
+watch(wantsPageCss, (v) => setPageCss(v), { immediate: true })
 
 /* Dismissing the "three days left" banner is a per-viewer convenience and
    nothing else needs to know about it, so it lives in this session only. */

@@ -76,7 +76,7 @@ const routes = [
     path: '/signin',
     name: 'signin',
     component: () => import('../views/SignIn.vue'),
-    meta: { bare: true, title: 'SignIn' }
+    meta: { bare: true, pageCss: true, title: 'SignIn' }
   },
   /* The trial's own door. Production has no sign-up at all — tenants are
      provisioned by InstaSafe — so this is the one route with no capture to
@@ -85,7 +85,7 @@ const routes = [
     path: '/signup',
     name: 'signup',
     component: () => import('../views/SignUp.vue'),
-    meta: { bare: true, title: 'Start a trial' }
+    meta: { bare: true, pageCss: true, title: 'Start a trial' }
   },
   /**
    * The end-user portal.
@@ -169,7 +169,7 @@ routes.push({
   /* Veno's 404 is its own black page, not a console screen — it brings its
      own stylesheet and has no header or sidebar. `bare` is what keeps the
      shell off it. */
-  meta: { bare: true, title: '404 - Page Not Found' }
+  meta: { bare: true, pageCss: true, title: '404 - Page Not Found' }
 })
 
 const router = createRouter({
