@@ -384,14 +384,14 @@ const style = computed(() => at.value
   --pb-rule: var(--i-rule, #e4e4ea);
   --pb-ink: var(--i-ink, #1b1c20);
   --pb-dim: var(--i-dim, #5a5c66);
-  --pb-accent: var(--i-v600, #5b4fd1);
+  --pb-accent: var(--i-v600, #656195);
 }
 .pip-portal {
   --pb-card: var(--p-card, #fff);
   --pb-rule: var(--p-rule, #e4e4ea);
   --pb-ink: var(--p-ink, #1b1c20);
   --pb-dim: var(--p-dim, #5a5c66);
-  --pb-accent: var(--p-violet, #5b4fd1);
+  --pb-accent: var(--p-violet, #656195);
 }
 
 .pip-wrap {

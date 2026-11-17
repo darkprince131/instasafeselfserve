@@ -19,9 +19,8 @@
   display:flex; flex-direction:column;
   background:var(--p-bg);
   color:var(--p-ink);
-  font-family:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
   font-size:14px; line-height:1.6;
-  letter-spacing:-.004em;
   -webkit-font-smoothing:antialiased;
 }
 .p-app *,.p-app *::before,.p-app *::after{ box-sizing:border-box; }
@@ -39,32 +38,36 @@
    `data-i-theme` switch, and under the system preference when nobody has
    chosen — because the sign-in screen is reached before there is any UI to
    choose with. */
+/* The palette is production's, not the redesign's. `--p-violet` keeps its
+   name — 90 rules reference it — and carries #656195, the purple-grey every
+   filled button in veno is painted with. Violet and coral belong to the
+   console redesign and must not appear in this project. */
 :root{
-  --p-ink:#1b1c20;
-  --p-dim:#55565f;
-  --p-mute:#83858f;
-  --p-rule:#e7e7ec;
-  --p-bg:#fafafb;
+  --p-ink:#343c45;
+  --p-dim:#555;
+  --p-mute:#968ba0;
+  --p-rule:#e2dee6;
+  --p-bg:#fafbfc;
   --p-card:#fff;
-  --p-violet:#5b4fd1;
-  --p-violet-d:#4a3fc0;
-  --p-ok:#157a4a;
-  --p-bad:#c0392f;
-  --p-att:#8a5a00;
+  --p-violet:#656195;
+  --p-violet-d:#5b547d;
+  --p-ok:#1db82f;
+  --p-bad:#ef5137;
+  --p-att:#c43e2d;
 }
 
-html[data-i-theme="dark"]{
-  --p-ink:#e9e9ee;
-  --p-dim:#a3a4ae;
-  --p-mute:#777984;
-  --p-rule:rgba(255,255,255,.1);
-  --p-bg:#131316;
-  --p-card:#1a1b1f;
-  --p-violet:#8d82ff;
-  --p-violet-d:#a79dff;
-  --p-ok:#5fd19a;
-  --p-bad:#ff7a8a;
-  --p-att:#f0b355;
+body.dark-theme{
+  --p-ink:#fff;
+  --p-dim:rgba(255,255,255,.75);
+  --p-mute:rgba(255,255,255,.6);
+  --p-rule:rgba(255,255,255,.12);
+  --p-bg:#121212;
+  --p-card:#1b1b1b;
+  --p-violet:#8f8ac2;
+  --p-violet-d:#a9a5d4;
+  --p-ok:#4ade80;
+  --p-bad:#f87171;
+  --p-att:#ff8a74;
 }
 
 @media (prefers-color-scheme:dark){
@@ -150,13 +153,13 @@ html[data-i-theme="dark"]{
   outline:0; border-color:var(--p-violet); box-shadow:0 0 0 3px rgba(91,79,209,.14);
 }
 .p-code{
-  font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
   font-size:21px; letter-spacing:.3em; text-align:center;
 }
 .p-codewrap{ position:relative; }
 .p-ttl{
   position:absolute; right:12px; top:34px;
-  font-family:"Geist Mono",ui-monospace,monospace; font-size:12px; color:var(--p-mute);
+  font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:12px; color:var(--p-mute);
   font-variant-numeric:tabular-nums;
 }
 
@@ -189,7 +192,7 @@ html[data-i-theme="dark"]{
   border:1px solid var(--p-rule); border-radius:10px; background:#fff;
 }
 .p-key{
-  font-family:"Geist Mono",ui-monospace,monospace; font-size:12.5px;
+  font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:12.5px;
   padding:2px 6px; border-radius:5px; background:var(--p-bg);
   border:1px solid var(--p-rule); overflow-wrap:anywhere;
 }
@@ -259,7 +262,7 @@ html[data-i-theme="dark"]{
   border:1px solid var(--p-rule); border-radius:8px; background:var(--p-card);
   font-size:12.5px; color:var(--p-dim); text-align:left;
 }
-.p-gexplain code{ font-family:"Geist Mono",ui-monospace,monospace; font-size:11.5px; }
+.p-gexplain code{ font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:11.5px; }
 
 /* ===================================================================
    The member portal, grown up.

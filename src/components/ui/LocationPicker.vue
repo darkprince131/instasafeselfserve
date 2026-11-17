@@ -83,7 +83,7 @@ function draw () {
 
   if (!circle) {
     circle = L.circle(at, {
-      radius: r, color: '#5b4fd1', weight: 2, fillColor: '#5b4fd1', fillOpacity: 0.15
+      radius: r, color: '#656195', weight: 2, fillColor: '#656195', fillOpacity: 0.15
     }).addTo(map)
   } else {
     circle.setLatLng(at)
