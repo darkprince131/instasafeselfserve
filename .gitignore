@@ -10,3 +10,6 @@ dist/
 # console, kept locally so screens can be pixel-matched. Never committed:
 # this repo may be public and those pages show a production tenant.
 reference/
+
+# Verification screenshots. Throwaway.
+.shots/
