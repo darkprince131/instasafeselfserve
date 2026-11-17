@@ -54,6 +54,12 @@ const bare = computed(() => route.meta?.bare === true)
 const wantsPageCss = computed(() => route.meta?.pageCss === true)
 watch(wantsPageCss, (v) => setPageCss(v), { immediate: true })
 
+/* The portal's own sign-in and activation pages are bare but still need the
+   portal's canvas behind them — `.p-app` is where portal.css puts the
+   background and the centring, and without it both render flush to the top
+   left of a white page. */
+const portalBare = computed(() => route.meta?.portalBare === true)
+
 /* Dismissing the "three days left" banner is a per-viewer convenience and
    nothing else needs to know about it, so it lives in this session only. */
 const warningDismissed = ref(false)
@@ -71,7 +77,10 @@ onMounted(refreshStats)
 
 <template>
   <!-- bare routes: sign-in, sign-up, the end-user portal -->
-  <RouterView v-if="bare" />
+  <div v-if="portalBare" class="p-app">
+    <main class="p-main"><RouterView /></main>
+  </div>
+  <RouterView v-else-if="bare" />
 
   <template v-else>
     <Header
