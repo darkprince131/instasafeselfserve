@@ -59,7 +59,7 @@ async function run () {
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Network test"
       subtitle="Reachability and latency from where you are sitting."

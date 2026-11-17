@@ -65,7 +65,7 @@ watch([userId, appId], () => { if (userId.value && appId.value) run() })
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Access explorer"
       subtitle="Pick a person and an application. The policy engine answers, and shows its working."

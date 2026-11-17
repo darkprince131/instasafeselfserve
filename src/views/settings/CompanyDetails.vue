@@ -188,7 +188,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Company details"
       subtitle="Who this tenant belongs to, who to contact about it, and what users see when they sign in."

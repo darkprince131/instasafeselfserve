@@ -115,7 +115,7 @@ onUnmounted(() => clearInterval(tick))
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Session recording"
       subtitle="Recorded RDP, SSH and VNC sessions. Recording is set per application, so this list is only ever as complete as that configuration."

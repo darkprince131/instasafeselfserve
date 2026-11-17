@@ -10,7 +10,7 @@ import { bytes } from '../../resources.js'
 const toast = inject('toast', () => {})
 
 const rows = ref([]); const total = ref(0); const loading = ref(true)
-const page = ref(1); const perPage = ref(25)
+const page = ref(1); const perPage = ref(10)
 const sort = ref('startedAt'); const dir = ref('desc')
 const search = ref(''); const selectedIds = ref([]); const table = ref(null)
 const confirmOpen = ref(false)
@@ -67,7 +67,7 @@ onUnmounted(() => clearInterval(tick))
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       collection="sessions"
       title="Live sessions"

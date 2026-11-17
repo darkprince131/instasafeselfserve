@@ -1,19 +1,35 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { panelOpen, PANEL_SLOT } from '../../lib/list-panel.js'
 
 /**
- * The list template.
+ * The list template — 54 of the console's screens are this component with
+ * different columns, so it is the highest-leverage piece of UI in the
+ * project. It now emits production's own markup, captured from `/users`:
  *
- * 54 of the console's 66 screens are this component with different columns,
- * so it is the single highest-leverage piece of UI in the product. What it
- * fixes against production, beyond the visual reskin:
+ *   div.row.mb-2
+ *     .col-12.col-md-6   operation buttons (the `tools` slot)
+ *     .col-12.col-md-6   search · "1-4 of 4" · pager · rows-per-page
+ *   div.container-separator > .row
+ *     .col-12[.col-md-6 while a panel is open]
+ *       .table-responsive.table-container
+ *         table.table.table-hover.table-borderless.align-middle.text-nowrap
+ *           thead.border-bottom.table-light
+ *         .text-center.m-2 > i.fas.fa-frown + span   ("No results found")
+ *     #list-side-panel.col-12.col-md-6                the add/edit card
  *
- *   - sortable headers            (production: 0 of 54 screens have sort)
- *   - a column chooser            (0 of 54)
- *   - search that says what it searched
- *   - selection that reveals destructive actions only once something is
- *     selected, instead of a permanently armed Delete in the toolbar
- *   - an empty state that distinguishes "nothing here" from "nothing matched"
+ * What was dropped, deliberately (CLAUDE.md §8.5): sortable headers and the
+ * column chooser. Both are good and neither exists in production, and they
+ * sit *inside* the list template, which is where a difference is most
+ * visible. The access explorer and the guided flows are kept — they are
+ * additions beside the product, not alterations to it.
+ *
+ * What was kept: `sort`/`dir` props and the `sort` event, because nine
+ * screens pass them and a default sort order is not a visible feature.
+ *
+ * Production's page sizes are 10 / 30 / 50 and the count reads "1-4 of 4".
+ * Row click opens the record — there is no per-row edit button anywhere in
+ * production, and the whole table is `cursor:pointer` in style.css.
  */
 
 const props = defineProps({
@@ -22,21 +38,26 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   loading: Boolean,
   page: { type: Number, default: 1 },
-  perPage: { type: Number, default: 25 },
+  perPage: { type: Number, default: 10 },
   sort: { type: String, default: '' },
   dir: { type: String, default: 'asc' },
   selectable: { type: Boolean, default: true },
   rowKey: { type: String, default: 'id' },
-  rowAction: { type: Object, default: null }
+  rowAction: { type: Object, default: null },
+  /** Bound to the search box in the right-hand column. */
+  search: { type: String, default: '' },
+  searchable: { type: Boolean, default: true }
 })
 
-const emit = defineEmits(['update:page', 'update:perPage', 'sort', 'selection', 'row-action', 'row-click'])
+const emit = defineEmits([
+  'update:page', 'update:perPage', 'update:search',
+  'sort', 'selection', 'row-action', 'row-click'
+])
 
 const selected = ref(new Set())
-const hidden = ref(new Set())
-const colsOpen = ref(false)
+const draft = ref(props.search)
+watch(() => props.search, (v) => { draft.value = v })
 
-const visibleColumns = computed(() => props.columns.filter(c => !hidden.value.has(c.key)))
 const pages = computed(() => Math.max(1, Math.ceil(props.total / props.perPage)))
 const from = computed(() => props.total === 0 ? 0 : (props.page - 1) * props.perPage + 1)
 const to = computed(() => Math.min(props.page * props.perPage, props.total))
@@ -67,180 +88,160 @@ function toggleAll () {
 function clearSelection () { selected.value = new Set(); emitSelection() }
 defineExpose({ clearSelection })
 
-function headerSort (col) {
-  if (col.sortable === false) return
-  emit('sort', col.key, props.sort === col.key && props.dir === 'asc' ? 'desc' : 'asc')
-}
+/** Production searches on Enter, not as you type. */
+function commitSearch () { emit('update:search', draft.value) }
 
-function ariaSort (col) {
-  if (col.sortable === false) return null
-  if (props.sort !== col.key) return 'none'
-  return props.dir === 'asc' ? 'ascending' : 'descending'
-}
-
-/** Renders one cell. `pill` returning null means the value is the expected
- *  case and stays as plain text — colour is spent on exceptions only. */
 function value (row, col) {
   const raw = row[col.key]
   return col.cell ? col.cell(raw, row) : raw
 }
 
+/**
+ * Production badges every status, always filled, always a pill.
+ * `col.pill(value, row)` returns '' for the expected case in the redesign's
+ * model; here that becomes `bg-success`, which is what the capture shows on
+ * every Active row.
+ */
+function badgeClass (col, row) {
+  const tone = col.pill ? col.pill(row[col.key], row) : ''
+  if (tone === 'bad') return 'bg-danger'
+  if (tone === 'att') return 'bg-warning text-dark'
+  if (tone === 'off') return 'bg-secondary'
+  return 'bg-success'
+}
+
 function cellClass (col) {
   return {
-    'i-tech': col.mono,
-    'i-dimcell': col.dim,
-    'i-num': col.num,
     'text-end': col.align === 'right',
     'text-uppercase': col.upper,
-    'fw-medium': col.bold
+    'fw-semibold': col.bold
   }
 }
 </script>
 
 <template>
-  <!-- selection bar: destructive actions exist only once something is selected -->
-  <div v-if="selectable && selected.size" class="i-selnote">
-    <strong>{{ selected.size }} selected</strong>
-    <div class="i-right">
+  <!-- the toolbar row -->
+  <div class="row mb-2">
+    <div class="col-12 col-md-6 d-flex flex-wrap justify-content-start align-items-center">
+      <slot name="tools" :selected="[...selected]" :clear="clearSelection" />
       <slot name="bulk" :ids="[...selected]" :clear="clearSelection" />
-      <button class="i-btn i-sm i-quiet" @click="clearSelection">Clear</button>
     </div>
-  </div>
-
-  <div class="table-responsive">
-    <table class="i-table">
-      <thead>
-        <tr>
-          <th v-if="selectable" style="width:34px">
-            <input
-              type="checkbox" aria-label="Select all on this page"
-              :checked="allOn"
-              :indeterminate.prop="someOn"
-              @change="toggleAll"
-            >
-          </th>
-          <th
-            v-for="col in visibleColumns" :key="col.key"
-            :aria-sort="ariaSort(col)"
-            :class="{ 'text-end': col.align === 'right' }"
-            @click="headerSort(col)"
-          >
-            {{ col.label }}
-            <i
-              v-if="col.sortable !== false"
-              class="fa-solid fa-arrow-up i-sarr" aria-hidden="true"
-              style="font-size:9px"
-            />
-          </th>
-          <th
-            v-if="rowAction || $slots.actions"
-            :style="{ width: $slots.actions ? '240px' : '96px' }"
-          >{{ $slots.actions ? 'Actions' : '' }}</th>
-        </tr>
-      </thead>
-
-      <tbody v-if="loading">
-        <tr v-for="n in 8" :key="n" class="is-skel">
-          <td v-if="selectable"><div class="i-skel" style="width:14px;height:14px" /></td>
-          <td v-for="col in visibleColumns" :key="col.key"><div class="i-skel" /></td>
-          <td v-if="rowAction || $slots.actions" />
-        </tr>
-      </tbody>
-
-      <tbody v-else>
-        <tr
-          v-for="row in rows" :key="row[rowKey]"
-          :aria-selected="selected.has(row[rowKey])"
-          @click="emit('row-click', row)"
-        >
-          <td v-if="selectable" @click.stop>
-            <input
-              type="checkbox"
-              :aria-label="`Select ${row.name || row.username || row[rowKey]}`"
-              :checked="selected.has(row[rowKey])"
-              @change="toggleRow(row)"
-            >
-          </td>
-
-          <td v-for="col in visibleColumns" :key="col.key" :class="cellClass(col)">
-            <!-- booleans read as words, not as a tick that could mean anything -->
-            <template v-if="col.bool">
-              <span class="i-pill">
-                <span class="i-dot" :class="{ 'i-ok': row[col.key] }" />
-                {{ row[col.key] ? 'On' : 'Off' }}
-              </span>
-            </template>
-
-            <template v-else-if="col.pill">
-              <span
-                class="i-pill"
-                :class="col.pill(row[col.key], row) ? `i-${col.pill(row[col.key], row)}` : ''"
-              >
-                <span v-if="!col.pill(row[col.key], row)" class="i-dot i-ok" />
-                {{ value(row, col) }}
-              </span>
-            </template>
-
-            <template v-else>{{ value(row, col) ?? '—' }}</template>
-          </td>
-
-          <!-- One screen's row carries three verbs rather than one. The slot
-               falls back to the single rowAction button, so the 53 screens
-               that pass a rowAction render exactly as before. -->
-          <td v-if="rowAction || $slots.actions" class="text-end" @click.stop>
-            <slot name="actions" :row="row">
-              <button
-                v-if="rowAction && (!rowAction.when || rowAction.when(row))"
-                class="i-btn i-sm"
-                @click="emit('row-action', row)"
-              >{{ rowAction.label }}</button>
-            </slot>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <slot v-if="!loading && !rows.length" name="empty" />
-
-  <div v-if="rows.length || loading" class="i-tfoot">
-    <span>{{ from }}–{{ to }} of {{ total.toLocaleString() }}</span>
-
-    <div class="i-right">
-      <div class="position-relative">
-        <button class="i-btn i-sm" @click="colsOpen = !colsOpen">
-          <i class="fa-solid fa-table-columns" aria-hidden="true" /> Columns
-        </button>
-        <div v-if="colsOpen" class="i-menu" style="right:0;top:34px">
-          <button
-            v-for="col in columns" :key="col.key"
-            @click="hidden.has(col.key) ? hidden.delete(col.key) : hidden.add(col.key); hidden = new Set(hidden)"
-          >
-            <i
-              class="fa-solid" :class="hidden.has(col.key) ? 'fa-square' : 'fa-square-check'"
-              style="width:14px" aria-hidden="true"
-            />
-            {{ col.label }}
-          </button>
-        </div>
-      </div>
-
+    <div class="col-12 col-md-6 d-flex justify-content-end align-items-center">
+      <input
+        v-if="searchable"
+        v-model="draft" type="search" class="form-control"
+        placeholder="Type keyword and enter to search"
+        @keyup.enter="commitSearch" @search="commitSearch"
+      >
+      <span class="fs-6 text-nowrap ms-2">{{ from }}-{{ to }} of {{ total }}</span>
+      <button
+        :disabled="page <= 1" class="btn pagination-btn" type="button"
+        aria-label="Previous page" @click="emit('update:page', page - 1)"
+      ><i class="fas fa-chevron-left" /></button>
       <select
-        class="i-ctl" style="width:auto;height:28px;padding:0 26px 0 9px"
+        name="pageselect" id="pageselect" class="form-select pagination-select"
         :value="perPage" aria-label="Rows per page"
         @change="emit('update:perPage', Number($event.target.value))"
       >
-        <option :value="25">25</option>
+        <option :value="10">10</option>
+        <option :value="30">30</option>
         <option :value="50">50</option>
-        <option :value="100">100</option>
       </select>
+      <button
+        :disabled="page >= pages" class="btn pagination-btn" type="button"
+        aria-label="Next page" @click="emit('update:page', page + 1)"
+      ><i class="fas fa-chevron-right" /></button>
+    </div>
+  </div>
 
-      <button class="i-pbtn" :disabled="page <= 1" aria-label="Previous page" @click="emit('update:page', page - 1)">
-        <i class="fa-solid fa-chevron-left" style="font-size:10px" aria-hidden="true" />
-      </button>
-      <button class="i-pbtn" :disabled="page >= pages" aria-label="Next page" @click="emit('update:page', page + 1)">
-        <i class="fa-solid fa-chevron-right" style="font-size:10px" aria-hidden="true" />
-      </button>
+  <div class="container-separator">
+    <div class="row">
+      <div class="col-12" :class="panelOpen ? 'col-md-6' : 'col-md-12'">
+        <div class="table-responsive table-container">
+          <table class="table table-hover table-borderless align-middle text-nowrap">
+            <thead class="border-bottom table-light">
+              <tr>
+                <th v-if="selectable">
+                  <input
+                    type="checkbox" id="selectAll" aria-label="Select all on this page"
+                    :checked="allOn" :indeterminate.prop="someOn" @change="toggleAll"
+                  >
+                </th>
+                <th
+                  v-for="col in columns" :key="col.key"
+                  :class="{ 'text-end': col.align === 'right' }"
+                >{{ col.label }}</th>
+                <th v-if="rowAction || $slots.actions">{{ $slots.actions ? 'Action' : '' }}</th>
+              </tr>
+            </thead>
+
+            <tbody v-if="loading">
+              <tr v-for="n in 5" :key="n">
+                <td v-if="selectable" />
+                <td v-for="col in columns" :key="col.key">&nbsp;</td>
+                <td v-if="rowAction || $slots.actions" />
+              </tr>
+            </tbody>
+
+            <tbody v-else>
+              <tr v-for="row in rows" :key="row[rowKey]" @click="emit('row-click', row)">
+                <td v-if="selectable" @click.stop>
+                  <input
+                    type="checkbox" :id="`checkbox-${row[rowKey]}`" :value="row[rowKey]"
+                    :aria-label="`Select ${row.name || row.username || row[rowKey]}`"
+                    :checked="selected.has(row[rowKey])" @change="toggleRow(row)"
+                  >
+                </td>
+
+                <td
+                  v-for="(col, ci) in columns" :key="col.key"
+                  :class="[cellClass(col), ci === 0 && col.indicator !== false ? 'd-flex align-items-center' : '']"
+                >
+                  <!-- Production puts a live-session dot before the first
+                       column's value and links it to the live report. -->
+                  <template v-if="ci === 0 && col.indicator !== false">
+                    <RouterLink
+                      to="/reports/live"
+                      class="rounded-circle me-1 d-inline-block status-indicator"
+                      :class="row.online ? 'bg-success' : 'bg-warning'"
+                      @click.stop
+                    /> {{ value(row, col) ?? '—' }}
+                  </template>
+
+                  <template v-else-if="col.bool">
+                    <span class="badge rounded-pill" :class="row[col.key] ? 'bg-success' : 'bg-secondary'">
+                      {{ row[col.key] ? 'Yes' : 'No' }}
+                    </span>
+                  </template>
+
+                  <template v-else-if="col.pill">
+                    <span class="badge rounded-pill" :class="badgeClass(col, row)"> {{ value(row, col) }} </span>
+                  </template>
+
+                  <template v-else>{{ value(row, col) ?? '—' }}</template>
+                </td>
+
+                <td v-if="rowAction || $slots.actions" @click.stop>
+                  <slot name="actions" :row="row">
+                    <button
+                      v-if="rowAction && (!rowAction.when || rowAction.when(row))"
+                      class="btn btn-primary operation-btn"
+                      @click="emit('row-action', row)"
+                    >{{ rowAction.label }}</button>
+                  </slot>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="text-center m-2" :style="{ display: (!loading && !rows.length) ? '' : 'none' }">
+            <i class="fas fa-frown p-1" /><span>No results found</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- The add/edit card lands here; see lib/list-panel.js. -->
+      <div v-show="panelOpen" :id="PANEL_SLOT" class="col-12 col-md-6" />
     </div>
   </div>
 </template>

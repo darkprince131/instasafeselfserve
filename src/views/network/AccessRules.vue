@@ -26,7 +26,7 @@ const toast = inject('toast', () => {})
 const refreshStats = inject('refreshStats', () => {})
 
 const rows = ref([]); const total = ref(0); const loading = ref(true)
-const page = ref(1); const perPage = ref(25)
+const page = ref(1); const perPage = ref(10)
 const sort = ref('priority'); const dir = ref('asc')
 const search = ref(''); const selectedIds = ref([]); const table = ref(null)
 const confirmOpen = ref(false)
@@ -237,7 +237,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       collection="accessRules"
       title="Access rules"

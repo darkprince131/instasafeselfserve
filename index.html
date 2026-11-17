@@ -1,26 +1,47 @@
 <!doctype html>
-<html lang="en" data-i-theme="light">
+<!--
+  The three stylesheets below are veno's own, byte-identical, served from
+  /prod/. That is the whole fidelity strategy: the console does not reproduce
+  production's output, it loads production's CSS and emits the markup that CSS
+  already expects. `data-bs-theme` and `body.dark-theme` are production's two
+  theme hooks — Bootstrap 5.3's own attribute and style.css's own class — and
+  both are set together, exactly as the live DOM does.
+
+  pagescss.css is NOT loaded here. It redefines body, .form-control and
+  .btn-primary for the signed-out pages and would fight style.css on every
+  console screen; production serves it only on /signin, and so does this
+  (src/lib/page-css.js attaches it per route).
+-->
+<html lang="en" data-bs-theme="light">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>InstaSafe i365 — Console</title>
-  <meta name="description" content="InstaSafe i365 Zero Trust console — interactive demo.">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Geist and Geist Mono, both variable.
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-       Inter was the previous face and it is the single clearest tell that an
-       interface was generated rather than designed: it is the default of every
-       template and every AI mock, so a security console wearing it reads as a
-       screenshot of a product rather than a product. Geist is drawn for
-       interfaces, has genuine tabular figures, and its mono is a matched
-       family rather than a borrowed one - which matters here, because this
-       console sets IP addresses, MAC addresses, UUIDs and counts in mono
-       beside sans labels on every row of 54 screens. -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400..500&display=swap">
+  <title>InstaSafe</title>
+  <meta name="description" content="InstaSafe Zero Trust access — self-serve trial.">
+  <meta name="robots" content="noodp">
+
+  <link href="/prod/fonts/all.min.css" rel="stylesheet">
+  <link href="/prod/css/vendor.css" rel="stylesheet">
+  <link href="/prod/css/style.css" rel="stylesheet">
+
+  <link rel="shortcut icon" href="/prod/img/favicon.png">
 </head>
 <body>
+  <script>
+    /* The theme is remembered, and the sign-in screen renders before Vue
+       mounts. Restoring it here — on <html> and on <body> both, because
+       Bootstrap reads the attribute and style.css reads the class — stops a
+       visitor who picked dark getting a white flash on every reload. This
+       runs inside <body> rather than <head> so the class lands before the
+       first paint instead of on DOMContentLoaded. */
+    try {
+      var t = localStorage.getItem('i365.theme') === 'dark' ? 'dark' : 'light'
+      document.documentElement.setAttribute('data-bs-theme', t)
+      document.body.className = t + '-theme'
+    } catch (e) {}
+  </script>
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
 </body>

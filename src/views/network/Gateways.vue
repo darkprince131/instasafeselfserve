@@ -54,7 +54,7 @@ const rows = ref([])
 const total = ref(0)
 const loading = ref(true)
 const page = ref(1)
-const perPage = ref(25)
+const perPage = ref(10)
 const sort = ref('')
 const dir = ref('asc')
 const search = ref('')
@@ -294,7 +294,7 @@ onMounted(() => { loadLicence(); load() })
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       collection="gateways"
       title="Gateways"

@@ -379,7 +379,7 @@ const num = (n) => (n ?? 0).toLocaleString()
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Dashboard"
       :subtitle="`Demo tenant · ${num(stats.users)} users · ${num(stats.devices)} devices · ${num(stats.gateways)} gateways`"

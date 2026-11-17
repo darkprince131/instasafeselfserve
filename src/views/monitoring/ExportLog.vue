@@ -187,7 +187,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Export Log"
       subtitle="Where this tenant ships its logs. A profile is one destination and one log."

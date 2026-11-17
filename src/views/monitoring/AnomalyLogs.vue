@@ -178,7 +178,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Risk Report"
       subtitle="Behaviour that does not fit the pattern: impossible travel, one address shared by several accounts, a session hopping between addresses, and attempts the policy blocked."

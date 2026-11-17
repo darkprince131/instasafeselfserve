@@ -129,7 +129,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Device checks"
       subtitle="Each check is an operating system, a check type and a value. A device has to satisfy every check that applies to it."

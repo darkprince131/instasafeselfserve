@@ -376,27 +376,26 @@ const graphOn = defineModel('graph', { type: Boolean, default: false })
 <template>
   <button
     v-if="ops.length"
-    class="i-btn"
+    class="operation-btn btn btn-primary"
     :title="isGateway || isGeneric
       ? 'Create from an uploaded list'
       : 'Add, delete, activate or suspend from an uploaded list'"
     @click="opsOpen = true"
-  >
-    <i class="fa-solid fa-file-csv" aria-hidden="true" />
-    <span class="d-none d-lg-inline">{{ isGateway || isGeneric ? 'Bulk Add' : 'Bulk Ops' }}</span>
-  </button>
+  > {{ isGateway || isGeneric ? 'Bulk Add' : 'Bulk Ops' }} </button>
 
-  <button
-    v-if="dimensions.length"
-    class="i-btn" :title="graphOn ? 'Back to the table' : 'See these rows as a graph'"
-    @click="graphOn = !graphOn"
-  >
-    <i class="fa-solid" :class="graphOn ? 'fa-table' : 'fa-chart-simple'" aria-hidden="true" />
-    <span class="d-none d-lg-inline">{{ graphOn ? 'Table' : 'Graph' }}</span>
-  </button>
+  <!-- Velto's Graph swaps the table for a node scene in place and the button
+       becomes "Table". Production renders it green, inside a bare span. -->
+  <span v-if="dimensions.length">
+    <button
+      class="operation-btn btn btn-success"
+      :title="graphOn ? 'Back to the table' : 'See these rows as a graph'"
+      @click="graphOn = !graphOn"
+    > {{ graphOn ? 'Table' : 'Graph' }} </button>
+  </span>
 
   <Sheet
     v-model:open="opsOpen"
+    nested
     :title="isGeneric ? `Bulk add ${noun}s` : (isGateway ? 'Bulk add gateways' : `Bulk operations for ${kind}`)"
     subtitle="The uploaded file is the list. What is ticked in the table is not used."
   >
@@ -406,7 +405,7 @@ const graphOn = defineModel('graph', { type: Boolean, default: false })
       <h3>1 · Choose the operation</h3>
       <div class="i-field">
         <label for="bop">Operation</label>
-        <select id="bop" class="i-ctl" v-model="op">
+        <select id="bop" class="form-select" v-model="op">
           <option v-for="o in ops" :key="o.key" :value="o.key">{{ o.label }}</option>
         </select>
       </div>
@@ -461,8 +460,8 @@ const graphOn = defineModel('graph', { type: Boolean, default: false })
         naming one are listed as skipped rather than failing silently.
       </p>
 
-      <button class="i-btn i-sm mt-2" @click="downloadTemplate">
-        <i class="fa-solid fa-download" aria-hidden="true" /> Download sample CSV
+      <button class="btn btn-success nav-btn mt-2" @click="downloadTemplate">
+        <span>Download sample CSV</span>
       </button>
     </div>
 
@@ -498,16 +497,14 @@ const graphOn = defineModel('graph', { type: Boolean, default: false })
     </div>
 
     <template #footer>
-      <button class="i-btn i-quiet" @click="opsOpen = false">Cancel</button>
-      <div class="i-right">
-        <button
-          class="i-btn i-primary"
-          :disabled="!plan || !plan.willRun || applying"
-          @click="apply"
-        >
-          {{ applying ? 'Applying…' : plan ? `Apply to ${plan.willRun}` : 'Upload a file first' }}
-        </button>
-      </div>
+      <button
+        class="btn btn-success nav-btn"
+        :disabled="!plan || !plan.willRun || applying"
+        @click="apply"
+      >
+        <span>{{ applying ? 'Applying…' : plan ? `Apply to ${plan.willRun}` : 'Upload a file first' }}</span>
+      </button>
+      <button class="btn btn-danger nav-btn" @click="opsOpen = false">Cancel</button>
     </template>
   </Sheet>
 </template>

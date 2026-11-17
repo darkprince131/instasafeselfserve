@@ -1,169 +1,136 @@
 /* ==============================================================
-   i365 — production component layer
+   console.css — the trial's own component layer, in production's language
    ==============================================================
-   The design system from the prototype, as classes you can ship.
+   What this file is NOT: a design system. The design system here is
+   `/prod/css/style.css`, which is veno's, loaded verbatim, and the 20
+   captured screens are matched by emitting the markup it already expects.
 
-   Everything is prefixed `i-`, so nothing collides with Bootstrap and
-   nothing collides with the 352 class names already in the product.
-   Both stylesheets can be loaded at once, which is the point: a screen
-   is migrated when its Blade partial starts emitting `i-` markup, and
-   until then it keeps rendering exactly as it does today.
+   What this file IS: the thin layer under everything this project added and
+   production has no class for — the picker, the CSV dry-run, the guided
+   tours, the access explorer, the agent stage, the end-user portal. Those
+   surfaces are real work and they are staying, so they are dressed in
+   production's own values rather than in their own:
 
-     <link rel="stylesheet" href="/dist/css/vendor.css">   Bootstrap, stays
-     <link rel="stylesheet" href="/dist/css/style.css">    legacy, stays
-     <link rel="stylesheet" href="/dist/css/i365.css">     this
+     colour      #656195 primary · #1db82f success · #ef5137 attention
+                 #493e54 headings · #343c45 body · #968ba0 secondary
+                 #e2dee6 rules — every one lifted out of style.css
+     radius      2px on controls, .375rem on floating layers. Production has
+                 no other radii, so neither does this.
+     type        Helvetica Neue / Arial, .875rem body, .75rem micro. There is
+                 no monospace anywhere in production, so `--i-mono` is the
+                 same stack: an IP address set in mono is a visible tell.
+     elevation   Bootstrap's own `shadow` / `shadow-sm` values.
 
-   What does NOT change when a screen migrates:
-     routes, controllers, API payloads, form field `name` attributes,
-     element `id`s, `v-model` bindings, validation, permissions.
-   What does change: the wrapper markup around them.
+   Scope is `.i-page`, which every view's root carries alongside
+   `.container-fluid` — so style.css's own `.content-wrapper .container-fluid`
+   rules reach these screens too, and this file never has to restate them.
 
-   SECTIONS
-     1  tokens          6  table
-     2  base            7  side panel
-     3  shell + rail    8  modal, toast
-     4  page header     9  form
-     5  metrics, bars  10  controls, status
+   Dark mode is `body.dark-theme`, production's hook, not an attribute of our
+   own. Setting a second switch is how a console ends up half-themed.
    ============================================================== */
 
 /* ================== 1 · tokens ================== */
 :root{
-  /* neutrals */
-  --i-g25:#fafafb; --i-g50:#f7f7f8; --i-g100:#eeeef0; --i-g150:#e3e3e7;
-  --i-g400:#9394a1; --i-g500:#747686; --i-g600:#5e5f6e;
+  /* neutrals, from style.css's own custom properties */
+  --i-g25:#fafbfc; --i-g50:#f7f7f9; --i-g100:#eff0f2; --i-g150:#e2dee6;
+  --i-g400:#968ba0; --i-g500:#6c757d; --i-g600:#555555;
 
   --i-canvas:#ffffff;
   --i-tint:var(--i-g25);
-  --i-rule:var(--i-g100);
-  --i-rule-strong:var(--i-g150);
-  --i-ink:#1f2023;
-  --i-dim:var(--i-g600);
-  --i-mute:var(--i-g400);
+  --i-rule:var(--i-g150);
+  --i-rule-strong:#dee2e6;
+  --i-ink:#343c45;
+  --i-head:#493e54;
+  --i-dim:#555555;
+  --i-mute:#968ba0;
 
-  /* violet = interactive, and only interactive */
-  --i-v50:#f3f1ff; --i-v500:#7265e0; --i-v600:#5b4fd1; --i-v700:#4a3fb0;
-  /* One hue stepped, for splitting a bar by the values of a second field.
-     A categorical rainbow would say the segments are unrelated things; they
-     are values of one field, so they are shades of one colour. Explicit
-     stops rather than color-mix: the mix needed a grey token that does not
-     exist, and silently resolved to nothing. */
-  --i-seg1:#4a3fb0; --i-seg2:#5b4fd1; --i-seg3:#7f73e6;
-  --i-seg4:#a79ef0; --i-seg5:#c8c2f6; --i-seg6:#e2defb;
+  /* production's primary is the purple-grey its buttons are filled with */
+  --i-v50:#eeedf4; --i-v500:#656195; --i-v600:#656195; --i-v700:#5b547d;
+  --i-seg1:#4b4770; --i-seg2:#5b547d; --i-seg3:#656195;
+  --i-seg4:#8c88b3; --i-seg5:#b3b0cd; --i-seg6:#d9d7e6;
   --i-primary:var(--i-v600); --i-primary-ink:#ffffff;
 
-  /* coral = attention, and only attention */
-  --i-c50:#fff3ef; --i-c500:#ef6a45; --i-c600:#c2451f; --i-c-line:#f7d8cd;
+  /* production's attention colour is the sidebar/delete coral */
+  --i-c50:#fdece9; --i-c500:#ef5137; --i-c600:#c43e2d; --i-c-line:#f7cfc7;
 
-  --i-ok:#1a9e4b; --i-ok-bg:#eefaf1; --i-ok-line:#c9edd6;
-  --i-bad:#d92d3f; --i-bad-bg:#fdf0f1;
+  --i-ok:#1db82f; --i-ok-bg:#e8f8ea; --i-ok-line:#c3ebc9;
+  --i-bad:#ef5137; --i-bad-bg:#fdece9;
 
-  /* elevation is earned: only floating layers get one */
-  --i-float:0 0 0 1px rgba(31,32,35,.06),0 8px 24px -8px rgba(31,32,35,.16);
-  --i-float-lg:0 0 0 1px rgba(31,32,35,.07),0 24px 56px -20px rgba(31,32,35,.28);
+  /* Bootstrap's own shadows — production uses `shadow` and `shadow-sm`
+     and nothing else. */
+  --i-float:0 .125rem .25rem rgba(0,0,0,.075);
+  --i-float-lg:0 .5rem 1rem rgba(0,0,0,.15);
 
-  --i-rail-bg:var(--i-g50);
-  --i-rail-rule:var(--i-g150);
-  --i-rail-ink:var(--i-ink);
-  --i-rail-dim:var(--i-g600);
-  --i-rail-mute:var(--i-g400);
-  --i-rail-hover:rgba(31,32,35,.045);
-  --i-rail-active:var(--i-v50);
-  --i-rail-active-ink:var(--i-v700);
-
-  /* One spacing scale. Panels, stats and form sections were each using
-     their own numbers - 18/24, 22/26, 26 - which reads as sloppy rhythm even
-     when every individual value is defensible. */
   --i-s1:4px; --i-s2:8px; --i-s3:12px; --i-s4:16px;
-  --i-s5:22px; --i-s6:26px; --i-s7:34px;
+  --i-s5:20px; --i-s6:24px; --i-s7:32px;
 
-  --i-r-ctl:6px;          /* controls */
-  --i-r-float:8px;        /* floating layers */
-  --i-rail-w:238px;
-  --i-topbar-h:50px;
-  --i-gut:34px;           /* page gutter; rows bleed to it */
-  --i-row-h:52px;
+  --i-r-ctl:2px;              /* style.css: every control is 2px */
+  --i-r-float:.375rem;        /* Bootstrap's --bs-border-radius */
+  --i-rail-w:230px;
+  --i-topbar-h:62px;
+  --i-gut:0px;                /* .container-fluid already pads 1rem */
+  --i-row-h:38px;
 
-  --i-sans:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  --i-mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --i-sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
+  /* production sets nothing in monospace; neither does this */
+  --i-mono:"Helvetica Neue",Helvetica,Arial,sans-serif;
 
-  /* Type scale. Named sizes rather than literals scattered across 90
-     selectors, which is how the old file ended up with 12, 12.5, 13 and 14
-     all doing the job of "body". */
-  --i-t-title:25px;     /* page title - the heaviest thing on screen, and not bold */
-  --i-t-section:15px;   /* panel and section headings */
-  --i-t-body:13px;      /* rows, controls, most of the interface */
-  --i-t-meta:12px;      /* secondary lines under a body line */
-  --i-t-micro:11px;     /* counts, timestamps, column heads */
+  --i-t-title:1.25rem;   /* .container-heading > h2 */
+  --i-t-section:1rem;    /* .container-subheading > h3 */
+  --i-t-body:.875rem;
+  --i-t-meta:.875rem;
+  --i-t-micro:.75rem;
 
-  /* Tracking is a function of size: Geist needs tightening at display sizes
-     and opening up at micro sizes, which is the opposite of applying one
-     letter-spacing everywhere. */
-  --i-tr-title:-.021em;
-  --i-tr-section:-.013em;
-  --i-tr-body:-.004em;
-  --i-tr-micro:.055em;
+  --i-tr-title:0; --i-tr-section:0; --i-tr-body:0; --i-tr-micro:0;
 
-  --i-sb:rgba(31,32,35,.17); --i-sb-hi:rgba(31,32,35,.34);
-  --i-rail-sb:rgba(31,32,35,.15); --i-rail-sb-hi:rgba(31,32,35,.3);
+  --i-sb:rgba(0,0,0,.35); --i-sb-hi:rgba(0,0,0,.55);
+  --i-rail-sb:rgba(0,0,0,.2); --i-rail-sb-hi:rgba(0,0,0,.4);
+  --i-rail-bg:#fff; --i-rail-rule:#e2dee6; --i-rail-ink:#343c45;
+  --i-rail-dim:#555; --i-rail-mute:#968ba0;
+  --i-rail-hover:#f7f7f9; --i-rail-active:#fdece9; --i-rail-active-ink:#ef5137;
 }
 
-/* Dark is designed, not inverted. Elevation there is a ring, because a drop
-   shadow does nothing on a dark ground. */
-html[data-i-theme="dark"]{
-  --i-canvas:#131316;
-  --i-tint:#191a1e;
-  --i-rule:rgba(255,255,255,.07);
-  --i-rule-strong:rgba(255,255,255,.12);
-  --i-ink:#f2f2f4;
-  --i-dim:#9394a1;
-  --i-mute:#747686;
+/* style.css's dark values, verbatim, so an added panel changes with the
+   console rather than a beat behind it. */
+body.dark-theme{
+  --i-canvas:#121212;
+  --i-tint:#1b1b1b;
+  --i-rule:rgba(255,255,255,.12);
+  --i-rule-strong:rgba(255,255,255,.18);
+  --i-ink:#ffffff;
+  --i-head:#ffffff;
+  --i-dim:rgba(255,255,255,.75);
+  --i-mute:rgba(255,255,255,.6);
 
-  --i-v50:rgba(114,101,224,.16);
-  --i-v500:#8578ee; --i-v600:#8578ee; --i-v700:#a99ff0;
-  --i-primary:var(--i-v500); --i-primary-ink:#15151a;
+  --i-v50:rgba(101,97,149,.28);
+  --i-v500:#8f8ac2; --i-v600:#8f8ac2; --i-v700:#a9a5d4;
+  --i-primary:#656195; --i-primary-ink:#ffffff;
 
-  --i-c50:rgba(255,142,117,.13);
-  --i-c500:#ff9576; --i-c600:#ffb49c; --i-c-line:rgba(255,142,117,.26);
-  --i-ok:#5cd98a; --i-ok-bg:rgba(34,197,67,.12); --i-ok-line:rgba(34,197,67,.22);
-  --i-bad:#ff7a8a; --i-bad-bg:rgba(239,68,68,.12);
+  --i-c50:rgba(239,81,55,.18);
+  --i-c500:#ef5137; --i-c600:#ff8a74; --i-c-line:rgba(239,81,55,.34);
+  --i-ok:#4ade80; --i-ok-bg:rgba(29,184,47,.16); --i-ok-line:rgba(29,184,47,.3);
+  --i-bad:#f87171; --i-bad-bg:rgba(239,81,55,.16);
 
-  --i-float:0 0 0 1px rgba(255,255,255,.10),0 10px 28px -8px rgba(0,0,0,.7);
-  --i-float-lg:0 0 0 1px rgba(255,255,255,.12),0 26px 60px -18px rgba(0,0,0,.85);
+  --i-float:0 .125rem .25rem rgba(0,0,0,.5);
+  --i-float-lg:0 .5rem 1rem rgba(0,0,0,.6);
 
-  --i-rail-bg:#17171b;
-  --i-rail-rule:rgba(255,255,255,.08);
-  --i-rail-ink:#f2f2f4;
-  --i-rail-dim:#9394a1;
-  --i-rail-mute:#747686;
+  --i-sb:rgba(255,255,255,.3); --i-sb-hi:rgba(255,255,255,.5);
+  --i-rail-bg:#121212; --i-rail-rule:rgba(255,255,255,.12);
+  --i-rail-ink:#fff; --i-rail-dim:rgba(255,255,255,.75);
+  --i-rail-mute:rgba(255,255,255,.6);
   --i-rail-hover:rgba(255,255,255,.06);
-  --i-rail-active:rgba(114,101,224,.18);
-  --i-rail-active-ink:#b7afff;
-
-  --i-sb:rgba(255,255,255,.15); --i-sb-hi:rgba(255,255,255,.30);
-  --i-rail-sb:rgba(255,255,255,.14); --i-rail-sb-hi:rgba(255,255,255,.28);
-}
-/* the rail can be dark while the workspace stays light */
-html[data-i-rail="dark"]{
-  --i-rail-bg:#17171b;
-  --i-rail-rule:rgba(255,255,255,.08);
-  --i-rail-ink:#f2f2f4;
-  --i-rail-dim:#9394a1;
-  --i-rail-mute:#747686;
-  --i-rail-hover:rgba(255,255,255,.06);
-  --i-rail-active:rgba(114,101,224,.18);
-  --i-rail-active-ink:#b7afff;
-  --i-rail-sb:rgba(255,255,255,.14); --i-rail-sb-hi:rgba(255,255,255,.28);
+  --i-rail-active:rgba(239,81,55,.2); --i-rail-active-ink:#ff8a74;
 }
 
 /* ================== 2 · base ================== */
-.i-app,.i-app *,.i-app *::before,.i-app *::after{ box-sizing:border-box; }
+.i-page,.i-page *,.i-page *::before,.i-page *::after{ box-sizing:border-box; }
 /* every component below sets an explicit display, which outranks the UA's
    [hidden] rule — so [hidden] has to be restated at component weight */
 [hidden]{ display:none !important; }
-.i-app{
+.i-page{
   font-family:var(--i-sans);
-  font-size:var(--i-t-body);
-  line-height:1.55;
+  font-size:1rem;
+  line-height:1.5;
   letter-spacing:var(--i-tr-body);
   color:var(--i-ink);
   background:var(--i-canvas);
@@ -172,10 +139,8 @@ html[data-i-rail="dark"]{
      over 1,820 users is unreadable when the 1s are narrow, and this console
      is mostly columns of numbers. */
   font-variant-numeric:tabular-nums;
-  font-optical-sizing:auto;
-  font-feature-settings:"cv05","ss01";
 }
-.i-app :focus-visible{
+.i-page :focus-visible{
   outline:2px solid var(--i-v600);
   outline-offset:2px;
   border-radius:3px;
@@ -184,10 +149,8 @@ html[data-i-rail="dark"]{
    ids, ports, timestamps. Names and labels are words, and stay in sans. */
 .i-tech{
   font-family:var(--i-mono);
-  font-size:12px;
-  letter-spacing:-.02em;
-  color:var(--i-dim);
-  font-variant-ligatures:none;
+  font-size:.875rem;
+  color:var(--i-ink);
 }
 .i-num{ font-variant-numeric:tabular-nums; }
 /* secondary column: still a word, just not the one you scan for */
@@ -197,23 +160,17 @@ html[data-i-rail="dark"]{
   padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
 }
 
-.i-app *{ scrollbar-width:thin; scrollbar-color:var(--i-sb) transparent; }
-.i-app ::-webkit-scrollbar{ width:10px; height:10px; }
-.i-app ::-webkit-scrollbar-track,
-.i-app ::-webkit-scrollbar-corner{ background:transparent; }
-.i-app ::-webkit-scrollbar-thumb{
+.i-page *{ scrollbar-width:thin; scrollbar-color:var(--i-sb) transparent; }
+.i-page ::-webkit-scrollbar{ width:10px; height:10px; }
+.i-page ::-webkit-scrollbar-track,
+.i-page ::-webkit-scrollbar-corner{ background:transparent; }
+.i-page ::-webkit-scrollbar-thumb{
   background-color:var(--i-sb); border-radius:99px;
   border:3px solid transparent; background-clip:content-box; min-height:34px;
 }
-.i-app ::-webkit-scrollbar-thumb:hover{ background-color:var(--i-sb-hi); }
+.i-page ::-webkit-scrollbar-thumb:hover{ background-color:var(--i-sb-hi); }
 
-/* ================== 3 · shell + rail ================== */
-.i-app{
-  display:grid;
-  grid-template-columns:var(--i-rail-w) minmax(0,1fr);
-  height:100dvh;
-  overflow:hidden;
-}
+/* ================== 3 · panels ================== */
 .i-rail{
   display:flex; flex-direction:column; min-height:0;
   background:var(--i-rail-bg);
@@ -298,8 +255,7 @@ html[data-i-rail="dark"]{
   background:var(--i-v50); color:var(--i-v700);
   display:grid; place-items:center; font-size:var(--i-t-micro); font-weight:600;
 }
-html[data-i-rail="dark"] .i-av,
-html[data-i-theme="dark"] .i-av{ background:rgba(255,255,255,.08); color:var(--i-rail-ink); }
+body.dark-theme .i-av{ background:rgba(255,255,255,.08); color:var(--i-rail-ink); }
 .i-railfoot .i-uname{
   font-size:var(--i-t-meta); color:var(--i-rail-ink);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -365,7 +321,7 @@ html[data-i-theme="dark"] .i-av{ background:rgba(255,255,255,.08); color:var(--i
   box-shadow:var(--i-float-lg);
   max-height:min(62vh,440px); overflow:auto;
 }
-html[data-i-theme="dark"] .i-cmdpop{ box-shadow:none; outline:1px solid rgba(255,255,255,.09); }
+body.dark-theme .i-cmdpop{ box-shadow:none; outline:1px solid rgba(255,255,255,.09); }
 .i-cmdrow{
   display:flex; align-items:center; gap:10px; width:100%;
   padding:7px 9px; border:0; border-radius:5px; background:transparent;
@@ -402,15 +358,12 @@ html[data-i-theme="dark"] .i-cmdpop{ box-shadow:none; outline:1px solid rgba(255
   font-family:var(--i-mono); font-size:var(--i-t-micro); color:var(--i-mute);
   padding-right:6px; font-variant-numeric:tabular-nums;
 }
-/* The trailing 72px was for breathing room; `--i-badge-h` adds whatever the
-   host's deploy badge occupies on top of it. Netlify pins a 197x64 iframe to
-   this corner at the maximum z-index, and it was swallowing clicks on the
-   last table row. The variable is 0 unless a badge is actually measured, so
-   local development and any other host are unchanged. See lib/badge-gap.js. */
-.i-page{
-  padding:26px var(--i-gut) calc(72px + var(--i-badge-h, 0px));
-  flex:1; min-width:0;
-}
+/* `.container-fluid` already pads 1rem, which is production's own page
+   gutter. All this adds is room under the last row for Netlify's deploy
+   badge — a 197x64 iframe pinned to that corner at the maximum z-index,
+   which was swallowing clicks on the bottom table row. The variable is 0
+   unless a badge is actually measured. See lib/badge-gap.js. */
+.i-page{ padding-bottom:var(--i-badge-h, 0px); }
 
 /* ================== 4 · page header ================== */
 /* One header for all 66 screens: title, one line of context, actions right.
@@ -420,8 +373,7 @@ html[data-i-theme="dark"] .i-cmdpop{ box-shadow:none; outline:1px solid rgba(255
   margin:0 0 22px; flex-wrap:wrap;
 }
 .i-phead h1{
-  margin:0; font-size:var(--i-t-title); font-weight:450;
-  letter-spacing:var(--i-tr-title); line-height:1.15; color:var(--i-ink);
+  margin:0; font-size:1.25rem; font-weight:700; line-height:1.2; color:var(--i-head);
 }
 .i-phead .i-sub{ margin:5px 0 0; font-size:var(--i-t-meta); color:var(--i-mute); }
 .i-phead .i-acts{ margin-left:auto; display:flex; align-items:center; gap:8px; }
@@ -485,7 +437,7 @@ html[data-i-theme="dark"] .i-cmdpop{ box-shadow:none; outline:1px solid rgba(255
 .i-col:first-child{ padding-left:0; }
 .i-col:last-child{ border-right:0; padding-right:0; }
 .i-chead{ display:flex; align-items:baseline; gap:var(--i-s3); margin-bottom:var(--i-s4); }
-.i-chead h2{ margin:0; font-size:13px; font-weight:500; letter-spacing:-.006em; color:var(--i-ink); }
+.i-chead h2{ margin:0; font-size:.875rem; font-weight:700; color:#343c45; }
 .i-chead .i-meta{ margin-left:auto; font-size:var(--i-t-micro); color:var(--i-mute); }
 
 /* An inline bar row beats a pie: it is sortable, labelled, and reads at a
@@ -493,7 +445,7 @@ html[data-i-theme="dark"] .i-cmdpop{ box-shadow:none; outline:1px solid rgba(255
 .i-barrow{ display:grid; grid-template-columns:minmax(0,120px) 1fr auto; align-items:center; gap:14px; padding:6px 0; }
 .i-barrow .i-bl{ font-size:var(--i-t-meta); color:var(--i-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .i-bartrack{ height:7px; border-radius:99px; background:var(--i-g100); overflow:hidden; }
-html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
+body.dark-theme .i-bartrack{ background:rgba(255,255,255,.08); }
 /* `display:block` is doing real work here.
    The track is a grid item and gets blockified for free, but the fill is a
    plain span inside it - inline, so height and width were both ignored and
@@ -545,25 +497,25 @@ html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
    nine screens nest search and tools inside it, the shared template has them
    as siblings, and this flattens the first into the second without touching
    either file. */
+/* Production's list toolbar is `row mb-2`: the operation buttons on the left
+   in a `col-md-6`, the search, the count and the pager on the right in the
+   other. The redesign had search leading the row; this puts it back. */
 .i-strip .i-right{ display:contents; }
-.i-strip .i-search{ order:-1; }
+.i-strip .i-search{ order:1; margin-left:auto; }
 .i-strip .i-tools{
   display:flex; align-items:center; gap:6px;
   flex:1 1 auto; min-width:0;
 }
-.i-strip .i-tools > .i-btn.i-primary:last-child,
-.i-strip .i-tools > .i-anchor{ margin-left:auto; }
+.i-strip .i-tools{ flex:0 1 auto; }
 .i-strip .i-ftabs{ order:1; flex-basis:100%; }
 /* a screen with no chips keeps everything on one line */
 .i-strip .i-ftabs:only-child{ flex-basis:auto; }
 .i-search{
-  display:flex; align-items:center; gap:8px; height:34px; padding:0 11px;
+  display:flex; align-items:center; gap:8px; padding:.375rem .75rem;
   flex:0 1 420px; min-width:200px;
-  border:1px solid var(--i-rule-strong);
-  border-radius:var(--i-r-ctl); background:var(--i-canvas);
-  transition:border-color .16s ease;
+  border:var(--bs-border-width,1px) solid var(--bs-border-color,#e2dee6);
+  border-radius:var(--i-r-ctl); background:var(--bs-body-bg,#fff);
 }
-.i-search:hover{ border-color:var(--i-dim); }
 /* the actions butt up against the search rather than floating away from it */
 .i-tools{ display:flex; align-items:center; gap:6px; flex:none; }
 .i-search svg{ width:14px; height:14px; color:var(--i-mute); flex:none; }
@@ -572,7 +524,7 @@ html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
   font:inherit; font-size:var(--i-t-meta); color:var(--i-ink);
 }
 .i-search input::placeholder{ color:var(--i-mute); }
-.i-search:focus-within{ border-color:var(--i-v600); box-shadow:0 0 0 3px var(--i-v50); }
+.i-search:focus-within{ border-color:var(--bs-border-color,#e2dee6); box-shadow:none; }
 .i-search input::-webkit-search-cancel-button{ -webkit-appearance:none; }
 .i-sclear{
   flex:none; display:grid; place-items:center; width:19px; height:19px;
@@ -581,28 +533,26 @@ html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
 }
 .i-sclear:hover{ background:var(--i-tint); color:var(--i-ink); }
 
+/* Production's table: boxed, light header row, sentence-case headings,
+   .875rem throughout. Not the unboxed bleeding rows of the redesign. */
 .i-table{ width:100%; border-collapse:collapse; }
 .i-table th{
-  text-align:left; padding:9px 14px; font-size:var(--i-t-micro); font-weight:500;
-  letter-spacing:var(--i-tr-micro); text-transform:uppercase;
-  /* --i-mute measures 3.00:1 on white; at 10.5px uppercase that fails. --i-dim is 6.29:1 */
-  color:var(--i-dim);
-  border-bottom:1px solid var(--i-rule-strong); white-space:nowrap;
+  text-align:left; padding:.5rem; font-size:.875rem; font-weight:700;
+  color:var(--i-ink); background:var(--bs-table-light-bg,#f8f9fa);
+  border-bottom:1px solid var(--bs-border-color,#dee2e6); white-space:nowrap;
 }
-.i-table th:first-child,.i-table td:first-child{ padding-left:0; }
-.i-table th:last-child,.i-table td:last-child{ padding-right:0; }
 .i-table td{
-  padding:0 14px; height:var(--i-row-h); vertical-align:middle;
-  border-bottom:1px solid var(--i-rule); font-size:13px; color:var(--i-ink);
+  padding:.5rem; height:var(--i-row-h); vertical-align:middle;
+  border-bottom:0; font-size:.875rem; color:var(--i-ink);
   /* Data cells do not wrap. A machine-generated name broken over three lines
      is unreadable and makes every row a different height; the table scrolls
      horizontally inside .table-responsive instead. */
   white-space:nowrap;
 }
 .i-table td.i-wrap{ white-space:normal; }
-.i-table tbody tr:last-child td{ border-bottom:0; }
-.i-table tbody tr:hover td{ background:var(--i-tint); }
-.i-table tbody tr[aria-selected="true"] td{ background:var(--i-v50); }
+.i-table tbody tr:hover td{ background:rgba(0,0,0,.08); }
+body.dark-theme .i-table tbody tr:hover td{ background:rgba(255,255,255,.08); }
+.i-table tbody tr[aria-selected="true"] td{ background:rgba(0,0,0,.05); }
 /* a sortable header says so before you click it, not after */
 .i-table th[aria-sort]{ cursor:pointer; user-select:none; }
 .i-table th[aria-sort]:hover{ color:var(--i-ink); }
@@ -611,7 +561,7 @@ html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
 .i-table th[aria-sort="ascending"] .i-sarr,
 .i-table th[aria-sort="descending"] .i-sarr{ opacity:1; }
 .i-table th[aria-sort="descending"] .i-sarr{ transform:rotate(180deg); }
-.i-table input[type=checkbox]{ width:14px; height:14px; accent-color:var(--i-v600); }
+.i-table input[type=checkbox]{ position:relative; top:2px; }
 /* row actions appear on hover or focus; they do not sit there competing with
    the data for all 2,000 rows */
 .i-rowbtn{
@@ -647,14 +597,11 @@ html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
 
 /* An empty list and a filtered-empty list are different situations and say
    different things. 54 screens currently share one string. */
-.i-zero{ padding:72px 0; text-align:center; }
-.i-zero .i-zi{
-  width:38px; height:38px; margin:0 auto 16px; display:grid; place-items:center;
-  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-float); color:var(--i-mute);
-}
-.i-zero h3{ margin:0 0 6px; font-size:15.5px; font-weight:450; letter-spacing:-.012em; color:var(--i-ink); }
-.i-zero p{ margin:0 auto; max-width:390px; font-size:var(--i-t-meta); color:var(--i-mute); }
-.i-zero .i-za{ margin-top:18px; }
+.i-zero{ padding:2rem 0; text-align:center; }
+.i-zero .i-zi{ color:var(--i-mute); font-size:1rem; margin-bottom:.5rem; }
+.i-zero h3{ margin:0 0 .25rem; font-size:1rem; font-weight:700; color:var(--i-head); }
+.i-zero p{ margin:0 auto; max-width:460px; font-size:.875rem; color:var(--i-mute); }
+.i-zero .i-za{ margin-top:1rem; }
 
 /* ================== 7 · side panel ================== */
 /* Replaces the slide-in card. A sheet is a floating layer, so it is the one
@@ -675,7 +622,7 @@ html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
   flex:none; display:flex; align-items:flex-start; gap:12px;
   padding:20px 22px 16px; border-bottom:1px solid var(--i-rule);
 }
-.i-sheeth h2{ margin:0; font-size:17px; font-weight:450; letter-spacing:-.016em; }
+.i-sheeth h2{ margin:0; font-size:1.25rem; font-weight:700; color:var(--i-head); }
 .i-sheeth .i-sub{ margin:4px 0 0; font-size:var(--i-t-meta); color:var(--i-mute); }
 .i-sheetb{ flex:1; min-height:0; overflow-y:auto; padding:20px 22px 28px; }
 /* The sheet's Save and Cancel are bottom-right, which is the badge's corner;
@@ -727,7 +674,7 @@ html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
    field so adding one is a line of Blade, not a layout decision. */
 .i-formsec{ margin:0 0 var(--i-s6); }
 .i-formsec > h3{
-  margin:0 0 3px; font-size:13px; font-weight:500; letter-spacing:-.006em; color:var(--i-ink);
+  margin:0 0 3px; font-size:1rem; font-weight:700; color:var(--i-head);
 }
 .i-formsec > .i-secsub{ margin:0 0 16px; font-size:12px; color:var(--i-mute); }
 .i-frow{
@@ -738,26 +685,27 @@ html[data-i-theme="dark"] .i-bartrack{ background:rgba(255,255,255,.08); }
 .i-frow > .i-field > .i-sw{ margin-top:2px; }
 .i-field{ min-width:0; }
 .i-field > label{
-  display:block; margin-bottom:5px; font-size:var(--i-t-meta); font-weight:450; color:var(--i-dim);
+  display:block; margin-bottom:2px; font-size:.875rem; font-weight:700; color:var(--i-head);
 }
-.i-field > label .i-req{ color:var(--i-bad); margin-left:2px; }
-.i-hint{ margin:5px 0 0; font-size:var(--i-t-micro); color:var(--i-mute); }
+.i-field > label .i-req{ color:#dc3545; margin-left:1px; }
+.i-hint{ margin:4px 0 0; font-size:.75rem; color:var(--i-mute); }
 .i-err{ margin:5px 0 0; font-size:var(--i-t-micro); color:var(--i-bad); }
 
 .i-ctl{
-  width:100%; height:32px; padding:0 10px;
-  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-ctl);
-  background:var(--i-canvas); color:var(--i-ink);
-  font:inherit; font-size:var(--i-t-meta);
+  width:100%; padding:.375rem .75rem; line-height:1.5;
+  border:var(--bs-border-width,1px) solid var(--bs-border-color,#e2dee6);
+  border-radius:var(--i-r-ctl);
+  background:var(--bs-body-bg,#fff); color:var(--bs-body-color,#212529);
+  font-family:var(--i-sans); font-size:14px; box-shadow:none;
 }
-textarea.i-ctl{ height:auto; min-height:76px; padding:7px 10px; resize:vertical; }
+textarea.i-ctl{ min-height:76px; resize:vertical; }
 select.i-ctl{
   appearance:none; padding-right:28px; cursor:pointer;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239394a1' stroke-width='2' stroke-linecap='round'><path d='m6 9 6 6 6-6'/></svg>");
-  background-repeat:no-repeat; background-position:right 9px center; background-size:14px;
+  background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat:no-repeat; background-position:right .75rem center; background-size:16px 12px;
 }
 .i-ctl::placeholder{ color:var(--i-mute); }
-.i-ctl:focus{ outline:none; border-color:var(--i-v600); box-shadow:0 0 0 3px var(--i-v50); }
+.i-ctl:focus{ outline:none; border-color:var(--bs-border-color,#e2dee6); box-shadow:none; }
 .i-ctl:disabled{ background:var(--i-tint); color:var(--i-mute); cursor:not-allowed; }
 .i-field.is-invalid .i-ctl{ border-color:var(--i-bad); }
 .i-duo{ display:flex; gap:0; }
@@ -789,7 +737,7 @@ select.i-ctl{
   border-radius:99px; background:var(--i-g150);
   position:relative; transition:background-color .15s;
 }
-html[data-i-theme="dark"] .i-sw .i-track{ background:rgba(255,255,255,.16); }
+body.dark-theme .i-sw .i-track{ background:rgba(255,255,255,.16); }
 .i-sw .i-track::after{
   content:""; position:absolute; top:2px; left:2px; width:14px; height:14px;
   border-radius:99px; background:#fff; transition:transform .15s;
@@ -803,44 +751,48 @@ html[data-i-theme="dark"] .i-sw .i-track{ background:rgba(255,255,255,.16); }
 /* One button scale. Production ships five systems at four radii, the tallest
    25px, which is under every pointer-target guideline. */
 .i-btn{
-  display:inline-flex; align-items:center; justify-content:center; gap:7px;
-  min-height:32px; padding:0 13px; border-radius:var(--i-r-ctl);
-  border:1px solid var(--i-rule-strong); background:var(--i-canvas); color:var(--i-ink);
-  font:inherit; font-size:var(--i-t-meta); font-weight:450; line-height:1;
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  min-height:25px; padding:0 12px; border-radius:var(--i-r-ctl);
+  border:1px solid var(--i-rule-strong); background:var(--i-canvas); color:var(--i-dim);
+  font-family:var(--i-sans); font-size:.75rem; font-weight:600; line-height:1;
   cursor:pointer; white-space:nowrap;
-  transition:background-color .12s,border-color .12s,color .12s;
+  transition:background-color .3s ease,transform .2s ease;
 }
-.i-btn:hover{ background:var(--i-tint); }
+.i-btn:hover{ transform:scale(1.05); }
 .i-btn svg{ width:14px; height:14px; flex:none; }
 .i-btn:disabled{ opacity:.45; cursor:not-allowed; }
 /* exactly one per screen */
 .i-btn.i-primary{
   background:var(--i-primary); border-color:var(--i-primary); color:var(--i-primary-ink); font-weight:500;
 }
-.i-btn.i-primary:hover{ background:var(--i-v700); border-color:var(--i-v700); }
-html[data-i-theme="dark"] .i-btn.i-primary:hover{ filter:brightness(1.08); background:var(--i-primary); }
-/* destructive is text until you commit; the fill lives on the confirm step */
-.i-btn.i-danger{ border-color:transparent; background:transparent; color:var(--i-bad); }
-.i-btn.i-danger:hover{ background:var(--i-bad-bg); }
-.i-btn.i-danger-solid{ background:var(--i-bad); border-color:var(--i-bad); color:#fff; font-weight:500; }
-.i-btn.i-danger-solid:hover{ filter:brightness(.92); background:var(--i-bad); }
-.i-btn.i-quiet{ border-color:transparent; background:transparent; color:var(--i-dim); }
-.i-btn.i-quiet:hover{ background:var(--i-tint); color:var(--i-ink); }
-.i-btn.i-sm{ min-height:28px; padding:0 10px; font-size:12px; }
+.i-btn.i-primary:active{ background:var(--i-v700); border-color:var(--i-v700); }
+/* Production fills its destructive buttons — the coral Delete sits in every
+   list toolbar. A ghost button here would be the visible difference. */
+.i-btn.i-danger,
+.i-btn.i-danger-solid{
+  background:#ef5137; border-color:#ef5137; color:#fff;
+}
+.i-btn.i-danger:active,
+.i-btn.i-danger-solid:active{ background:#c43e2d; border-color:#c43e2d; }
+.i-btn.i-ok{ background:#1db82f; border-color:#1db82f; color:#fff; }
+.i-btn.i-ok:active{ background:#189628; border-color:#189628; }
+.i-btn.i-quiet{ border-color:var(--i-rule-strong); background:var(--i-canvas); color:var(--i-dim); }
+.i-btn.i-sm{ min-height:25px; padding:0 10px; font-size:.75rem; }
 
 /* filter chips: visible, removable state. A filter you cannot see is a
    support ticket about missing data. */
 .i-ftabs{ display:flex; gap:6px; overflow-x:auto; -ms-overflow-style:none; }
 .i-ftabs::-webkit-scrollbar{ display:none; }
 .i-chip{
-  display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 10px;
-  border:1px solid var(--i-rule-strong); border-radius:99px;
-  background:transparent; color:var(--i-dim);
-  font:inherit; font-size:12px; cursor:pointer; white-space:nowrap;
+  display:inline-flex; align-items:center; gap:6px; height:25px; padding:0 12px;
+  border:1px solid var(--i-rule-strong); border-radius:var(--i-r-ctl);
+  background:var(--i-canvas); color:var(--i-dim);
+  font-family:var(--i-sans); font-size:.75rem; font-weight:600;
+  cursor:pointer; white-space:nowrap;
 }
-.i-chip:hover{ background:var(--i-tint); color:var(--i-ink); }
+.i-chip:hover{ transform:scale(1.05); }
 .i-chip[aria-pressed="true"],.i-chip.is-on{
-  background:var(--i-v50); border-color:transparent; color:var(--i-v700); font-weight:500;
+  background:#656195; border-color:#656195; color:#fff;
 }
 .i-chip svg{ width:13px; height:13px; flex:none; }
 .i-chip .i-n{ color:var(--i-mute); font-variant-numeric:tabular-nums; }
@@ -849,19 +801,19 @@ html[data-i-theme="dark"] .i-btn.i-primary:hover{ filter:brightness(1.08); backg
 /* Colour marks exceptions, not states. Active, Approved, Passed, Enrolled are
    the expected case and carry no pill — in a 40-row list that is the
    difference between 15 coloured marks and 80. */
+/* Production badges every status — `span.badge.rounded-pill.bg-success` on
+   every Active row — and that is the opposite of the redesign's rule that
+   colour marks exceptions only. Here production wins, so the unmodified
+   `.i-pill` is the green pill and the dot inside it collapses. */
 .i-pill{
-  display:inline-flex; align-items:center; gap:6px;
-  font-size:var(--i-t-meta); color:var(--i-dim);
+  display:inline-block; padding:.35em .65em; border-radius:50rem;
+  font-size:.75em; font-weight:700; line-height:1; text-align:center;
+  white-space:nowrap; vertical-align:baseline;
+  background:#198754; color:#fff;
 }
-.i-pill.i-att,.i-pill.i-bad{
-  padding:3px 9px; border-radius:99px; font-size:var(--i-t-micro); font-weight:450;
-}
-.i-pill.i-att{ background:var(--i-c50); color:var(--i-c600); border:1px solid var(--i-c-line); }
-.i-pill.i-bad{ background:var(--i-bad-bg); color:var(--i-bad); border:1px solid transparent; }
-.i-dot{ width:6px; height:6px; border-radius:99px; flex:none; background:var(--i-mute); }
-.i-dot.i-ok{ background:var(--i-ok); }
-.i-dot.i-att{ background:var(--i-c500); }
-.i-dot.i-bad{ background:var(--i-bad); }
+.i-pill.i-att{ background:#ffc107; color:#000; }
+.i-pill.i-bad{ background:#dc3545; color:#fff; }
+.i-dot{ display:none; }
 
 .i-menu{
   position:absolute; z-index:70; min-width:188px; padding:5px;
@@ -879,18 +831,12 @@ html[data-i-theme="dark"] .i-btn.i-primary:hover{ filter:brightness(1.08); backg
 /* ================== responsive ================== */
 @media (max-width:1100px){ :root{ --i-gut:22px; } }
 @media (max-width:860px){
-  .i-app{ grid-template-columns:minmax(0,1fr); }
-  .i-rail{
-    position:fixed; z-index:50; inset:0 auto 0 0; width:var(--i-rail-w);
-    transform:translateX(-100%); transition:transform .2s;
-  }
-  .i-app.i-navopen .i-rail{ transform:none; }
   :root{ --i-gut:16px; }
   .i-stat{ border-right:0; border-bottom:1px solid var(--i-rule); }
   .i-col{ border-right:0; padding-right:0; }
 }
 @media (prefers-reduced-motion:reduce){
-  .i-app *{ transition:none !important; animation-duration:.01ms !important; }
+  .i-page *{ transition:none !important; animation-duration:.01ms !important; }
 }
 
 /* ================== 14 · dashboard analytics ================== */
@@ -920,7 +866,7 @@ html[data-i-theme="dark"] .i-btn.i-primary:hover{ filter:brightness(1.08); backg
 }
 .i-segb:hover{ color:var(--i-ink); }
 .i-segb.is-on{ background:var(--i-canvas); color:var(--i-ink); font-weight:500; }
-html[data-i-theme="dark"] .i-segb.is-on{ background:var(--i-raise,#232329); }
+body.dark-theme .i-segb.is-on{ background:var(--i-raise,#232329); }
 .i-segb:focus-visible{ outline:2px solid var(--i-v600); outline-offset:1px; }
 
 .i-agrid{
@@ -1035,7 +981,7 @@ html[data-i-theme="dark"] .i-segb.is-on{ background:var(--i-raise,#232329); }
 .i-gbarhead:focus-visible{ outline:2px solid var(--i-v600); outline-offset:-2px; }
 .i-gbarlabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--i-t-body); }
 .i-gbartrack{ height:16px; border-radius:3px; background:var(--i-g100); overflow:hidden; }
-html[data-i-theme="dark"] .i-gbartrack{ background:rgba(255,255,255,.07); }
+body.dark-theme .i-gbartrack{ background:rgba(255,255,255,.07); }
 .i-gbarfill{
   display:flex; height:100%; border-radius:3px; background:var(--i-v500);
   transition:width .35s cubic-bezier(.16,1,.3,1); overflow:hidden; min-width:2px;
@@ -1204,7 +1150,7 @@ html[data-i-theme="dark"] .i-gbartrack{ background:rgba(255,255,255,.07); }
   border:1px solid var(--i-rule-strong); border-radius:var(--i-r-float);
   background:var(--i-canvas); box-shadow:var(--i-float-lg);
 }
-html[data-i-theme="dark"] .i-pickpop{ box-shadow:none; outline:1px solid rgba(255,255,255,.09); }
+body.dark-theme .i-pickpop{ box-shadow:none; outline:1px solid rgba(255,255,255,.09); }
 .i-pickall{ padding:3px 4px 6px; border-bottom:1px solid var(--i-rule); margin-bottom:4px; }
 .i-pickrow{
   display:flex; align-items:baseline; gap:9px; width:100%;

@@ -53,7 +53,7 @@ function go (i) { step.value = Math.max(0, Math.min(STEPS.length - 1, i)) }
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <header class="i-phead">
       <div>
         <h1>Desktop agent</h1>

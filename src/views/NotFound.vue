@@ -4,7 +4,7 @@ const route = useRoute()
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <div class="i-zero">
       <div class="i-zi"><i class="fa-solid fa-compass" aria-hidden="true" /></div>
       <h3>That screen is not in the demo yet</h3>

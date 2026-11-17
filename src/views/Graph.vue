@@ -30,7 +30,7 @@ const byGateway = computed(() => gateways.value.map(g => {
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Graph"
       subtitle="Which gateway serves which applications, and how much is flowing through each."

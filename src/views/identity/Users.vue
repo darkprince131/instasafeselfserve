@@ -16,7 +16,7 @@ const toast = inject('toast', () => {})
 const refreshStats = inject('refreshStats', () => {})
 
 const rows = ref([]); const total = ref(0); const loading = ref(true)
-const page = ref(1); const perPage = ref(25)
+const page = ref(1); const perPage = ref(10)
 const sort = ref(''); const dir = ref('asc')
 const search = ref(''); const filter = ref('all')
 const selectedIds = ref([]); const table = ref(null)
@@ -201,19 +201,40 @@ async function loadDetails (row) {
   } finally { detailsLoading.value = false }
 }
 
+/**
+ * Velto's own four columns, in velto's own order and wording — Name,
+ * Username, Auth Profile, Status. The list carried seven before: department,
+ * MFA enrolment and last-seen were added by the redesign and they are useful,
+ * but this is the screen a visitor compares against their own tenant most
+ * often, and three extra columns is the most visible difference there is.
+ *
+ * Nothing is lost: all three are still on the record, one row-click away.
+ */
 const columns = [
-  { key: 'name', label: 'Name', bold: true, sortable: false,
-    cell: (_, r) => r.firstName + ' ' + r.lastName },
-  { key: 'username', label: 'Username', dim: true },
-  { key: 'department', label: 'Department' },
-  { key: 'authProfile', label: 'Auth profile' },
-  { key: 'mfaEnrolled', label: 'MFA',
-    cell: (v) => v ? 'Enrolled' : 'Not enrolled',
-    pill: (v) => v ? null : 'att' },
-  { key: 'lastSeenAt', label: 'Last seen', cell: fmtAgo, dim: true },
+  { key: 'name', label: 'Name',
+    cell: (_, r) => (r.firstName + ' ' + r.lastName).trim() },
+  { key: 'username', label: 'Username' },
+  { key: 'authProfile', label: 'Auth Profile', cell: (v) => String(v || '').toLowerCase() },
   { key: 'status', label: 'Status',
     cell: (v) => v.charAt(0).toUpperCase() + v.slice(1), pill: statusPill }
 ]
+
+/** The list as it stands on screen, as a file. */
+function exportCsv () {
+  const cell = (row, col) => {
+    const v = col.cell ? col.cell(row[col.key], row) : row[col.key]
+    return '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  }
+  const body = [
+    columns.map(c => '"' + c.label + '"').join(','),
+    ...rows.value.map(row => columns.map(col => cell(row, col)).join(','))
+  ].join(String.fromCharCode(10))
+  const url = URL.createObjectURL(new Blob([body], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = 'users.csv'
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
 const DEPTS = ['Engineering','Finance','Sales','Support','HR','Operations','Legal','Marketing','IT','Security']
 const PROFILES = ['Local','Azure AD','RADIUS','LDAP','SAML','Google']
@@ -374,6 +395,12 @@ async function removeSelected () {
   load()
 }
 
+/** Velto's Delete is always armed and complains if nothing is ticked. */
+function askDelete () {
+  if (!selectedIds.value.length) { toast('Select at least one user first.'); return }
+  confirmOpen.value = true
+}
+
 async function suspendSelected () {
   const n = selectedIds.value.length
   for (const uid of selectedIds.value) await api.users.suspend(uid)
@@ -396,45 +423,11 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
-      collection="users"
       title="Users"
-      :subtitle="total.toLocaleString() + ' users · policy is inherited from the groups they belong to'"
-    >
-    </PageHeader>
-
-    <div class="i-strip">
-      <div class="i-ftabs">
-        <button
-          v-for="c in chips" :key="c.key"
-          class="i-chip" :class="{ 'is-on': filter === c.key }"
-          :aria-pressed="filter === c.key" @click="filter = c.key"
-        >
-          {{ c.label }}
-          <span v-if="c.n" class="i-n">{{ c.n.toLocaleString() }}</span>
-        </button>
-      </div>
-      <div class="i-right">
-        <label class="i-search">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <input v-model="search" type="search" placeholder="Search name, username or email">
-        </label>
-        <div class="i-tools">
-        <button class="i-btn"><i class="fa-solid fa-download" aria-hidden="true" /> Export</button>
-        <button class="i-btn">Import CSV</button>
-        <ListTools
-          v-model:graph="graphOn"
-          kind="users" resource="users"
-          :rows="rows" :dimensions="GRAPH_DIMS" :total="total"
-          @apply="onBulkApplied"
-        />
-        <button class="i-btn i-primary" @click="openAdd">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Add user
-        </button>
-        </div>
-      </div>
-    </div>
+      subtitle="A person that is provisioned in Secure Access through any of the authentication profiles"
+    />
 
     <GraphView
       v-if="graphOn"
@@ -446,38 +439,23 @@ onMounted(load)
     <DataTable
       v-else
       ref="table" :columns="columns" :rows="rows" :total="total" :loading="loading"
-      v-model:page="page" v-model:perPage="perPage" :sort="sort" :dir="dir"
+      v-model:page="page" v-model:perPage="perPage" v-model:search="search" :sort="sort" :dir="dir"
       @sort="onSort" @selection="selectedIds = $event" @row-click="openEdit"
     >
-      <template #bulk>
-        <button class="i-btn i-sm" @click="suspendSelected">Suspend</button>
-        <button class="i-btn i-sm i-danger" @click="confirmOpen = true">Delete</button>
-      </template>
-      <template #empty>
-        <!-- Three different situations, which the production console tells
-             apart not at all: it ships "No results found" on every one of
-             its 54 lists. A search that found nothing, a filter that hides
-             everything, and a tenant with no users in it are not the same
-             problem and do not have the same way out. -->
-        <EmptyState
-          v-if="search"
-          icon="fa-magnifying-glass"
-          title="Nothing matches that search"
-          body="Try a shorter term, or clear the search."
+      <!-- Velto's own toolbar, in velto's own order. -->
+      <template #tools>
+        <button class="operation-btn btn btn-primary" :disabled="sheetOpen" @click="openAdd"> Add </button>
+        <ListTools
+          kind="users" resource="users"
+          :rows="rows" :total="total"
+          @apply="onBulkApplied"
         />
-        <EmptyState
-          v-else-if="filter !== 'all'"
-          icon="fa-filter"
-          :title="`No ${filter} users`"
-          body="Switch back to All to see everyone."
-        />
-        <EmptyState
-          v-else
-          icon="fa-users"
-          title="No users yet"
-          body="Add the first one, or connect a directory and let it fill this in."
-          actionLabel="Add a user"
-          @action="openAdd"
+        <button class="operation-btn btn btn-success" @click="exportCsv"> CSV </button>
+        <button class="operation-btn btn btn-success" @click="exportCsv"> Advance User CSV </button>
+        <button class="operation-btn btn btn-danger" @click="askDelete"> Delete </button>
+        <ListTools
+          v-model:graph="graphOn"
+          :rows="rows" :dimensions="GRAPH_DIMS" :total="total"
         />
       </template>
     </DataTable>
@@ -490,15 +468,16 @@ onMounted(load)
       <!-- Velto's own three tabs. A person, what is enforced on them, and
            the networking — in that order, because that is the order anybody
            fills them in. -->
-      <div class="i-ftabs">
-        <button
-          v-for="t in TABS" :key="t.key"
-          class="i-chip" :class="{ 'is-on': tab === t.key }"
-          :aria-pressed="tab === t.key"
-          @click="tab = t.key"
-        >{{ t.label }}</button>
-      </div>
-      <p class="i-secsub">{{ TABS.find(t => t.key === tab).hint }}</p>
+      <nav>
+        <div class="nav nav-tabs mb-2" role="tablist">
+          <button
+            v-for="t in TABS" :key="t.key"
+            class="nav-link" :class="{ active: tab === t.key }"
+            type="button" role="tab" :aria-selected="tab === t.key"
+            @click="tab = t.key"
+          >{{ t.label }}</button>
+        </div>
+      </nav>
 
       <!-- ------------------------------------------------ Profile -->
       <template v-if="tab === 'profile'">

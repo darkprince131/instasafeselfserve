@@ -103,7 +103,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader :title="cfg.title" :subtitle="cfg.subtitle">
     </PageHeader>
 

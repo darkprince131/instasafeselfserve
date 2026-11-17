@@ -145,7 +145,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Subscription details"
       subtitle="What this tenant is licensed for, and who hears about it before it lapses."

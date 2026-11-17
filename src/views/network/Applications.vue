@@ -24,7 +24,7 @@ const toast = inject('toast', () => {})
 const refreshStats = inject('refreshStats', () => {})
 
 const rows = ref([]); const total = ref(0); const loading = ref(true)
-const page = ref(1); const perPage = ref(25)
+const page = ref(1); const perPage = ref(10)
 const sort = ref('name'); const dir = ref('asc')
 const search = ref(''); const filter = ref('all')
 const selectedIds = ref([]); const table = ref(null)
@@ -281,7 +281,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       collection="applications"
       title="Applications"

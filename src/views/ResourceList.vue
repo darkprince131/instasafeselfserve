@@ -42,7 +42,7 @@ const error = ref('')
 const total = ref(0)
 const loading = ref(true)
 const page = ref(1)
-const perPage = ref(25)
+const perPage = ref(10)
 const sort = ref('')
 const dir = ref('asc')
 const search = ref('')
@@ -641,6 +641,29 @@ function runTool (t) {
   toast(says || `${t.label} is wired in a later phase.`)
 }
 
+/**
+ * Production's CSV button. It downloads the list as it is on screen — the
+ * same columns, the same order, the same filter — because a file that does
+ * not match what you were looking at is the one bug an export can have.
+ */
+function exportCsv () {
+  const cols = cfg.value?.columns || []
+  const cell = (row, col) => {
+    const v = col.cell ? col.cell(row[col.key], row) : row[col.key]
+    return `"${String(v ?? '').replace(/"/g, '""')}"`
+  }
+  const csv = [
+    cols.map(c => `"${c.label}"`).join(','),
+    ...rows.value.map(row => cols.map(col => cell(row, col)).join(','))
+  ].join(String.fromCharCode(10))
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${(cfg.value?.title || 'export').toLowerCase().replace(/\s+/g, '-')}.csv`
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 function onRowAction (row) {
   toast(`${cfg.value.rowAction.label} — ${row.name || row.id}. Wired in a later phase.`)
 }
@@ -659,15 +682,17 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <!-- a route with no config yet: say so plainly -->
     <template v-if="!cfg">
       <PageHeader :title="title" />
-      <EmptyState
-        icon="fa-screwdriver-wrench"
-        title="Not built yet"
-        :body="`${r.path} is a real route in the console and is in the plan — see SCOPE.md for which phase it lands in. Nothing here is faked in the meantime.`"
-      />
+      <div class="container-separator">
+        <div class="row"><div class="col-12">
+          <div class="table-responsive table-container">
+            <EmptyState />
+          </div>
+        </div></div>
+      </div>
     </template>
 
     <template v-else>
@@ -689,44 +714,32 @@ onMounted(load)
     </div>
 
 
-      <!-- Search leads, the actions sit against it, the filters follow.
-           The page header above carries the title and one line of context and
-           nothing else: a title competing with two buttons is a title that
-           stops being read. -->
-      <div class="i-strip">
-        <label class="i-search">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <input v-model="search" type="search" :placeholder="`Search ${cfg.title.toLowerCase()}`">
+      <!-- Production's toolbar, in production's order:
+           Add · Bulk Ops · CSV · the screen's own tools · Delete · Graph.
+           Every one is an `.operation-btn` — 25px, 2px corner, filled. -->
+      <DataTable
+        v-else
+        ref="table"
+        :columns="cfg.columns"
+        :rows="rows"
+        :total="total"
+        :loading="loading"
+        v-model:page="page"
+        v-model:perPage="perPage"
+        v-model:search="search"
+        :sort="sort" :dir="dir"
+        :row-action="cfg.rowAction"
+        @sort="onSort"
+        @selection="selectedIds = $event"
+        @row-action="onRowAction"
+        @row-click="openEdit"
+      >
+        <template #tools>
           <button
-            v-if="search" type="button" class="i-sclear"
-            aria-label="Clear search" @click.prevent="search = ''"
-          ><i class="fa-solid fa-xmark" aria-hidden="true" /></button>
-        </label>
+            v-if="cfg.primaryAction && editable"
+            class="operation-btn btn btn-primary" :disabled="sheetOpen" @click="openAdd"
+          > {{ cfg.primaryAction }} </button>
 
-        <div class="i-tools">
-          <button class="i-btn" title="Download this list as CSV">
-            <i class="fa-solid fa-download" aria-hidden="true" />
-            <span class="d-none d-sm-inline">Export</span>
-          </button>
-          <!-- Actions that belong to one screen rather than to every screen.
-               Sync Now on a directory profile, Import IDP Metadata on SAML:
-               velto puts these in the toolbar and they are the reason each
-               protocol needs its own screen rather than a filter chip. -->
-          <button
-            v-for="t in (cfg.tools || [])" :key="t.key"
-            class="i-btn" @click="runTool(t)"
-          >
-            <i v-if="t.icon" class="fa-solid" :class="t.icon" aria-hidden="true" />
-            <span class="d-none d-lg-inline">{{ t.label }}</span>
-          </button>
-          <!-- Bulk Ops is users and devices only: those are the two velto
-               offers it on, and a CSV of access-rule names is not a thing
-               anybody has. Graph is offered wherever there is a field worth
-               grouping by. -->
-          <ListTools
-            v-model:graph="graphOn"
-            :rows="rows" :dimensions="graphDims" :total="total"
-          />
           <ListTools
             v-if="cfg.bulkAdd"
             kind="generic"
@@ -736,69 +749,34 @@ onMounted(load)
             :rows="rows" :total="total"
             @apply="onBulkApplied"
           />
-          <button v-if="cfg.primaryAction && editable" class="i-btn i-primary" @click="openAdd">
-            <i class="fa-solid fa-plus" aria-hidden="true" /> {{ cfg.primaryAction }}
-          </button>
-        </div>
 
-        <div v-if="chips.length" class="i-ftabs">
+          <button class="operation-btn btn btn-success" @click="exportCsv"> CSV </button>
+
+          <!-- Actions that belong to one screen rather than to every screen:
+               Sync Now on a directory profile, Import IDP Metadata on SAML. -->
+          <button
+            v-for="t in (cfg.tools || [])" :key="t.key"
+            class="operation-btn btn btn-primary" @click="runTool(t)"
+          > {{ t.label }} </button>
+
+          <button
+            class="operation-btn btn btn-danger"
+            :disabled="!selectedIds.length" @click="confirmOpen = true"
+          > {{ bulk.label }} </button>
+
+          <ListTools
+            v-model:graph="graphOn"
+            :rows="rows" :dimensions="graphDims" :total="total"
+          />
+
+          <!-- Not production's; kept where a screen genuinely filters, and
+               dressed as the same operation buttons so it reads as one row. -->
           <button
             v-for="c in chips" :key="c.key"
-            class="i-chip" :class="{ 'is-on': activeFilter === c.key }"
+            class="operation-btn btn" :class="activeFilter === c.key ? 'btn-primary' : 'btn-secondary'"
             :aria-pressed="activeFilter === c.key"
             @click="activeFilter = c.key"
-          >{{ c.label }}</button>
-        </div>
-      </div>
-
-      <GraphView
-        v-if="graphOn"
-        :rows="rows" :dimensions="graphDims" :total="total"
-        label-key="name"
-      />
-
-      <DataTable
-        v-else
-      ref="table"
-        :columns="cfg.columns"
-        :rows="rows"
-        :total="total"
-        :loading="loading"
-        v-model:page="page"
-        v-model:perPage="perPage"
-        :sort="sort" :dir="dir"
-        :row-action="cfg.rowAction"
-        @sort="onSort"
-        @selection="selectedIds = $event"
-        @row-action="onRowAction"
-        @row-click="openEdit"
-      >
-        <template #bulk>
-          <button
-            class="i-btn i-sm" :class="bulk.tone === 'bad' ? 'i-danger' : 'i-primary'"
-            @click="confirmOpen = true"
-          >{{ bulk.label }}</button>
-        </template>
-
-        <template #empty>
-          <EmptyState
-            v-if="error"
-            icon="fa-triangle-exclamation"
-            title="This list could not be loaded"
-            :body="error"
-            action-label="Try again"
-            @action="load"
-          />
-          <EmptyState
-            v-else
-            :icon="search ? 'fa-magnifying-glass' : 'fa-inbox'"
-            :title="search ? `Nothing matches “${search}”` : (cfg.emptyTitle || `No ${cfg.title.toLowerCase()} yet`)"
-            :body="search
-              ? 'Try a shorter term, or clear the search to see everything.'
-              : (cfg.emptyBody || 'Nothing has been added here yet.')"
-            :action-label="search ? 'Clear search' : (cfg.primaryAction || '')"
-            @action="search ? (search = '') : openAdd()"
-          />
+          > {{ c.label }} </button>
         </template>
       </DataTable>
     </template>
@@ -995,17 +973,16 @@ onMounted(load)
       </div>
 
       <template #footer>
-        <button class="i-btn i-quiet" @click="sheetOpen = false">
-          {{ reading ? 'Close' : 'Cancel' }}
+        <button v-if="reading" type="button" class="btn btn-success nav-btn" @click="reading = false">
+          <span>Edit</span>
         </button>
-        <div class="i-right">
-          <button v-if="reading" class="i-btn i-primary" @click="reading = false">
-            <i class="fa-solid fa-pen me-1" aria-hidden="true" />Edit
-          </button>
-          <button v-else class="i-btn i-primary" :disabled="saving" @click="saveForm">
-            {{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Create') }}
-          </button>
-        </div>
+        <button
+          v-else type="submit" class="btn btn-success nav-btn"
+          :disabled="saving" @click="saveForm"
+        ><span>{{ saving ? 'Saving…' : 'Save' }}</span></button>
+        <button type="button" class="btn btn-danger nav-btn" @click="sheetOpen = false">
+          {{ reading ? 'Close' : 'Reset' }}
+        </button>
       </template>
     </Sheet>
 

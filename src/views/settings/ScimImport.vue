@@ -101,7 +101,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="SCIM Import"
       subtitle="The endpoints an identity provider provisions users into. Everything here is generated — copy it into the other system."

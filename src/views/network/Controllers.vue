@@ -41,7 +41,7 @@ const rows = ref([])
 const total = ref(0)
 const loading = ref(true)
 const page = ref(1)
-const perPage = ref(25)
+const perPage = ref(10)
 const sort = ref('')
 const dir = ref('asc')
 const search = ref('')
@@ -376,7 +376,7 @@ onUnmounted(() => clearInterval(poll))
 </script>
 
 <template>
-  <div class="i-page">
+  <div class="container-fluid i-page">
     <PageHeader
       title="Controllers"
       subtitle="The control plane. Policy changes take effect when they are committed here."
