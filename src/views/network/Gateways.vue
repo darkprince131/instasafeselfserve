@@ -301,28 +301,7 @@ onMounted(() => { loadLicence(); load() })
       subtitle="The data plane. Traffic reaches the networks behind a gateway through it."
     />
 
-    <div class="i-strip">
-      <label class="i-search">
-        <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-        <input
-          v-model="search"
-          type="search"
-          placeholder="Search gateway, backup or location"
-          aria-label="Search gateways"
-        >
-      </label>
-
-      <div class="i-tools">
-        <button class="i-btn" title="Download this list as CSV" @click="exportCsv">
-          <i class="fa-solid fa-download" aria-hidden="true" />
-          <span class="d-none d-sm-inline">CSV</span>
-        </button>
-        <ListTools kind="gateways" resource="gateways" :rows="rows" :total="total" :limit="LIMIT" @apply="onBulkApplied" />
-        <button class="i-btn i-primary" @click="openAdd">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Add gateway
-        </button>
-      </div>
-    </div>
+    
 
     <DataTable
       :columns="columns"
@@ -330,28 +309,23 @@ onMounted(() => { loadLicence(); load() })
       :total="total"
       :loading="loading"
       v-model:page="page"
-      v-model:perPage="perPage"
+      v-model:perPage="perPage" v-model:search="search"
       :sort="sort"
       :dir="dir"
       @sort="onSort"
       @selection="selectedIds = $event"
       @row-click="openView"
     >
-      <template #bulk>
-        <button class="i-btn i-sm i-danger" @click="deleteOpen = true">Delete</button>
+      <template #tools>
+        <button class="operation-btn btn btn-primary"  @click="openAdd"> Add </button>
+        <ListTools kind="gateways" resource="gateways" :rows="rows" :total="total" :limit="LIMIT" @apply="onBulkApplied" />
+        <button class="operation-btn btn btn-success"  title="Download this list as CSV" @click="exportCsv"> CSV </button>
       </template>
 
-      <template #empty>
-        <EmptyState
-          :icon="search ? 'fa-magnifying-glass' : 'fa-inbox'"
-          :title="search ? `Nothing matches “${search}”` : 'No gateways yet'"
-          :body="search
-            ? 'Try a shorter term, or clear the search to see everything.'
-            : 'A gateway is where traffic enters, and it protects one or more networks. Add one before writing a rule that uses it.'"
-          :action-label="search ? 'Clear search' : 'Add gateway'"
-          @action="search ? (search = '') : openAdd()"
-        />
+      <template #bulk>
+        <button class="operation-btn btn btn-danger"  @click="deleteOpen = true"> Delete </button>
       </template>
+
     </DataTable>
 
     <Sheet
@@ -470,7 +444,6 @@ onMounted(() => { loadLicence(); load() })
     <ConfirmModal
       v-model:open="deleteOpen"
       :title="`Delete ${selectedIds.length} gateway${selectedIds.length === 1 ? '' : 's'}?`"
-      confirm-label="Delete"
       @confirm="deleteSelected"
     >
       <strong class="i-named">{{ selectedNames }}</strong> will be removed, with

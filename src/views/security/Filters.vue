@@ -256,14 +256,7 @@ onMounted(load)
     <PageHeader :title="cfg.title" :subtitle="cfg.subtitle">
     </PageHeader>
 
-    <div class="i-strip">
-      <div class="i-tools">
-        <button class="i-btn"><i class="fa-solid fa-download" aria-hidden="true" /> Export</button>
-        <button class="i-btn i-primary" @click="openAdd">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Add filter
-        </button>
-      </div>
-    </div>
+    
 
     <div class="row g-4">
       <div class="col-12 col-xl-7">
@@ -272,17 +265,13 @@ onMounted(load)
           :loading="loading" :per-page="50"
           @selection="selectedIds = $event" @row-click="openEdit"
         >
+      <template #tools>
+        <button class="operation-btn btn btn-primary"  @click="openAdd"> Add </button>
+        <button class="operation-btn btn btn-success"> Export </button>
+      </template>
+
           <template #bulk>
-            <button class="i-btn i-sm i-danger" @click="confirmOpen = true">Delete</button>
-          </template>
-          <template #empty>
-            <EmptyState
-              icon="fa-filter"
-              :title="'No ' + cfg.singular + 's yet'"
-              body="With no rules nothing is filtered, and everything is allowed through."
-              action-label="Add"
-              @action="openAdd"
-            />
+            <button class="operation-btn btn btn-danger"  @click="confirmOpen = true"> Delete </button>
           </template>
         </DataTable>
       </div>
@@ -514,8 +503,8 @@ onMounted(load)
       </div>
 
       <template #footer>
-        <button class="btn btn-success nav-btn"  :disabled="saving || !valid" @click="save"><span>{{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Create') }}</span></button>
-        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Cancel</button>
+        <button class="btn btn-success nav-btn"  :disabled="saving || !valid" @click="save"><span>{{ saving ? 'Saving…' : 'Save' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Reset</button>
 
 
       </template>
@@ -524,7 +513,6 @@ onMounted(load)
     <ConfirmModal
       v-model:open="confirmOpen"
       :title="'Delete ' + selectedIds.length + ' rule' + (selectedIds.length === 1 ? '' : 's') + '?'"
-      :confirm-label="'Delete ' + selectedIds.length"
       @confirm="removeSelected"
     >
       Traffic that was being blocked by {{ selectedIds.length === 1 ? 'this rule' : 'these rules' }}

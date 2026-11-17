@@ -193,13 +193,7 @@ onMounted(load)
       subtitle="Where this tenant ships its logs. A profile is one destination and one log."
     />
 
-    <div class="i-strip">
-      <div class="i-tools">
-        <button class="i-btn i-primary" @click="openAdd">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Add profile
-        </button>
-      </div>
-    </div>
+    
 
     <DataTable
       ref="table"
@@ -208,17 +202,12 @@ onMounted(load)
       @selection="selectedIds = $event"
       @row-click="openEdit"
     >
-      <template #bulk>
-        <button class="i-btn i-sm i-danger" @click="confirmOpen = true">Delete</button>
+      <template #tools>
+        <button class="operation-btn btn btn-primary"  @click="openAdd"> Add </button>
       </template>
-      <template #empty>
-        <EmptyState
-          icon="fa-file-export"
-          title="No export profiles"
-          body="Add one to ship the event log, the session log or the application access log to a collector."
-          action-label="Add profile"
-          @action="openAdd"
-        />
+
+      <template #bulk>
+        <button class="operation-btn btn btn-danger"  @click="confirmOpen = true"> Delete </button>
       </template>
     </DataTable>
 
@@ -304,8 +293,8 @@ onMounted(load)
       </div>
 
       <template #footer>
-        <button class="btn btn-success nav-btn"  :disabled="saving" @click="save"><span>{{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Create') }}</span></button>
-        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Cancel</button>
+        <button class="btn btn-success nav-btn"  :disabled="saving" @click="save"><span>{{ saving ? 'Saving…' : 'Save' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Reset</button>
 
 
       </template>
@@ -314,7 +303,6 @@ onMounted(load)
     <ConfirmModal
       v-model:open="confirmOpen"
       :title="`Delete ${selectedIds.length} export profile${selectedIds.length === 1 ? '' : 's'}?`"
-      confirm-label="Delete"
       @confirm="removeSelected"
     >
       <strong class="i-named">{{ names }}</strong> stops shipping immediately. Logs already

@@ -410,8 +410,8 @@ onMounted(async () => {
       </div>
 
       <template #footer>
-        <button class="btn btn-success nav-btn"  :disabled="saving" @click="save"><span>{{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Create rule') }}</span></button>
-        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Cancel</button>
+        <button class="btn btn-success nav-btn"  :disabled="saving" @click="save"><span>{{ saving ? 'Saving…' : 'Save' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Reset</button>
 
 
       </template>
@@ -420,7 +420,6 @@ onMounted(async () => {
     <ConfirmModal
       v-model:open="confirmOpen"
       :title="'Delete ' + selectedIds.length + ' rule' + (selectedIds.length === 1 ? '' : 's') + '?'"
-      :confirm-label="'Delete ' + selectedIds.length"
       @confirm="removeSelected"
     >
       <strong class="i-named">{{ names }}</strong> stops being evaluated immediately.

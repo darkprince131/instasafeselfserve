@@ -75,35 +75,21 @@ onUnmounted(() => clearInterval(tick))
     >
     </PageHeader>
 
-    <div class="i-strip">
-      <div class="i-tools">
-        <button class="i-btn" @click="load()"><i class="fa-solid fa-rotate" aria-hidden="true" /> Refresh</button>
-      </div>
-    </div>
+    
 
-    <div class="i-strip">
-      <div class="i-right ms-auto">
-        <label class="i-search">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <input v-model="search" type="search" placeholder="Search user, application or gateway">
-        </label>
-      </div>
-    </div>
+    
 
     <DataTable
       ref="table" :columns="columns" :rows="rows" :total="total" :loading="loading"
-      v-model:page="page" v-model:perPage="perPage" :sort="sort" :dir="dir"
+      v-model:page="page" v-model:perPage="perPage" v-model:search="search" :sort="sort" :dir="dir"
       @sort="onSort" @selection="selectedIds = $event"
     >
-      <template #bulk>
-        <button class="i-btn i-sm i-danger" @click="confirmOpen = true">Disconnect</button>
+      <template #tools>
+        <button class="operation-btn btn btn-primary"  @click="load()"> Refresh </button>
       </template>
-      <template #empty>
-        <EmptyState
-          icon="fa-plug-circle-xmark"
-          title="Nobody is connected"
-          body="No sessions are open. Everything is quiet."
-        />
+
+      <template #bulk>
+        <button class="operation-btn btn btn-danger"  @click="confirmOpen = true"> Disconnect </button>
       </template>
     </DataTable>
 

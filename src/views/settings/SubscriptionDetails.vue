@@ -151,13 +151,13 @@ onMounted(load)
       subtitle="What this tenant is licensed for, and who hears about it before it lapses."
     />
 
-    <div class="i-strip">
-      <div class="i-tools">
-        <button class="i-btn i-primary" :disabled="saving || !dirty" @click="save">
-          {{ saving ? 'Saving…' : 'Save changes' }}
-        </button>
+    <div class="row mb-2">
+      <div class="col-12 d-flex flex-wrap justify-content-start align-items-center">
+        <button class="operation-btn btn btn-primary"  :disabled="saving || !dirty" @click="save"> {{ saving ? 'Saving…' : 'Save changes' }} </button>
       </div>
     </div>
+
+    
 
     <!-- The period in force, said once in words. Production prints the rows
          and leaves you to compare the dates against today's date. -->

@@ -185,36 +185,21 @@ onMounted(load)
     >
     </PageHeader>
 
-    <div class="i-strip">
-      <div class="i-ftabs">
-        <button
-          v-for="p in PERIODS" :key="p.key"
-          class="i-chip" :class="{ 'is-on': period === p.key }"
-          :aria-pressed="period === p.key"
-          @click="period = p.key"
-        >{{ p.label }}</button>
-      </div>
-      <div class="i-tools">
-        <button class="i-btn i-primary" :disabled="scanning" @click="scan">
-          <i class="fa-solid fa-satellite-dish" aria-hidden="true" />
-          {{ scanning ? 'Scanning…' : 'Run detection' }}
-        </button>
-      </div>
-    </div>
+    
 
     <DataTable
       :columns="columns" :rows="visibleRows" :total="visibleRows.length" :loading="loading"
       :selectable="false" :per-page="50"
     >
-      <template #empty>
-        <EmptyState
-          icon="fa-shield-halved"
-          title="Nothing anomalous"
-          body="No impossible travel, no repeated authentication failures, no elevated posture failures. Press Run detection to check again."
-          action-label="Run detection"
-          @action="scan"
-        />
+      <template #tools>
+        <button class="operation-btn btn btn-secondary"
+          v-for="p in PERIODS" :key="p.key"
+           :class="{ 'is-on': period === p.key }"
+          :aria-pressed="period === p.key"
+          @click="period = p.key"> {{ p.label }} </button>
+        <button class="operation-btn btn btn-primary"  :disabled="scanning" @click="scan"> {{ scanning ? 'Scanning…' : 'Run detection' }} </button>
       </template>
+
     </DataTable>
 
     <p class="i-demo-note mt-4" style="max-width:700px">

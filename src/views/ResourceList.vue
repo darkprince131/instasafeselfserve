@@ -735,12 +735,11 @@ onMounted(load)
         @row-click="openEdit"
       >
         <template #tools>
-          <button
+        <button
             v-if="cfg.primaryAction && editable"
             class="operation-btn btn btn-primary" :disabled="sheetOpen" @click="openAdd"
           > Add </button>
-
-          <ListTools
+        <ListTools
             v-if="cfg.bulkAdd"
             kind="generic"
             :resource="cfg.resource"
@@ -749,27 +748,22 @@ onMounted(load)
             :rows="rows" :total="total"
             @apply="onBulkApplied"
           />
-
-          <button class="operation-btn btn btn-success" @click="exportCsv"> CSV </button>
-
-          <!-- Actions that belong to one screen rather than to every screen:
+        <button
+            class="operation-btn btn btn-danger"
+            :disabled="!selectedIds.length" @click="confirmOpen = true"
+          > {{ bulk.label }} </button>
+        <button class="operation-btn btn btn-success" @click="exportCsv"> CSV </button>
+        <ListTools
+            v-model:graph="graphOn"
+            :rows="rows" :dimensions="graphDims" :total="total"
+          />
+        <!-- Actions that belong to one screen rather than to every screen:
                Sync Now on a directory profile, Import IDP Metadata on SAML. -->
           <button
             v-for="t in (cfg.tools || [])" :key="t.key"
             class="operation-btn btn btn-primary" @click="runTool(t)"
           > {{ t.label }} </button>
-
-          <button
-            class="operation-btn btn btn-danger"
-            :disabled="!selectedIds.length" @click="confirmOpen = true"
-          > {{ bulk.label }} </button>
-
-          <ListTools
-            v-model:graph="graphOn"
-            :rows="rows" :dimensions="graphDims" :total="total"
-          />
-
-          <!-- Not production's; kept where a screen genuinely filters, and
+        <!-- Not production's; kept where a screen genuinely filters, and
                dressed as the same operation buttons so it reads as one row. -->
           <button
             v-for="c in chips" :key="c.key"
@@ -791,7 +785,7 @@ onMounted(load)
            Nothing here is a control you could leave half-changed. -->
       <template v-if="reading">
         <div class="i-formsec">
-          <dl class="i-readkv">
+        <dl class="i-readkv">
             <template v-for="f in readFields" :key="f.key">
               <dt>{{ f.label }}</dt>
               <dd :class="{ 'i-tech': f.mono }">{{ readValue(f) }}</dd>
@@ -806,14 +800,14 @@ onMounted(load)
           </dl>
         </div>
         <div v-if="(cfg.readActions || []).length" class="i-formsec">
-          <h3>Actions</h3>
-          <div class="d-flex flex-wrap gap-2">
+        <h3>Actions</h3>
+        <div class="d-flex flex-wrap gap-2">
             <button
               v-for="a in cfg.readActions" :key="a.key"
               class="i-btn i-sm" @click="runReadAction(a)"
             ><i class="fa-solid me-1" :class="a.icon || 'fa-bolt'" aria-hidden="true" />{{ a.label }}</button>
           </div>
-          <p v-if="readNote" class="i-hint">{{ readNote }}</p>
+        <p v-if="readNote" class="i-hint">{{ readNote }}</p>
         </div>
       </template>
 
@@ -1090,7 +1084,7 @@ onMounted(load)
       </div>
       <template #footer>
         <button class="btn btn-success nav-btn"  :disabled="secretSaving" @click="saveSecret"><span>{{ secretSaving ? 'Saving…' : 'Save' }}</span></button>
-        <button class="btn btn-danger nav-btn"  @click="secretOpen = false">Cancel</button>
+        <button class="btn btn-danger nav-btn"  @click="secretOpen = false">Reset</button>
 
 
       </template>
@@ -1112,7 +1106,7 @@ onMounted(load)
     <ConfirmModal
       v-model:open="confirmOpen"
       :title="`${bulk.label} ${selectedIds.length} ${selectedIds.length === 1 ? bulk.noun : bulk.noun + 's'}?`"
-      :confirm-label="`${bulk.label} ${selectedIds.length}`"
+      :confirm-label="bulk.tone === 'bad' ? 'Yes, Delete it!' : `Yes, ${bulk.label} it!`"
       @confirm="removeSelected"
     >
       <strong class="i-named">{{ confirmBody }}</strong> {{ bulk.body }}

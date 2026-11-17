@@ -704,11 +704,11 @@ onMounted(load)
       </div>
 
       <template #footer>
-        <button class="btn btn-success nav-btn"  :disabled="saving" @click="save"><span>{{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Save user') }}</span></button>
-        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Cancel</button>
+        <button class="btn btn-success nav-btn"  :disabled="saving" @click="save"><span>{{ saving ? 'Saving…' : 'Save' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Reset</button>
         <button
           v-if="editingId && form.status !== 'suspended'"
-          class="i-btn i-danger" @click="suspendOne"
+          class="btn btn-danger nav-btn" @click="suspendOne"
         >Suspend</button>
 
 
@@ -845,8 +845,8 @@ onMounted(load)
         </p>
       </div>
       <template #footer>
-        <button class="btn btn-success nav-btn"  :disabled="pwSaving" @click="savePassword"><span>{{ pwSaving ? 'Saving…' : 'Change password' }}</span></button>
-        <button class="btn btn-danger nav-btn"  @click="pwOpen = false">Cancel</button>
+        <button class="btn btn-success nav-btn"  :disabled="pwSaving" @click="savePassword"><span>{{ pwSaving ? 'Saving…' : 'Save' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="pwOpen = false">Reset</button>
 
 
       </template>
@@ -855,7 +855,6 @@ onMounted(load)
     <ConfirmModal
       v-model:open="confirmOpen"
       :title="'Delete ' + selectedIds.length + ' user' + (selectedIds.length === 1 ? '' : 's') + '?'"
-      :confirm-label="'Delete ' + selectedIds.length"
       @confirm="removeSelected"
     >
       <strong class="i-named">{{ names }}</strong> lose access immediately and their active

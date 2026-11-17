@@ -194,13 +194,13 @@ onMounted(load)
       subtitle="Who this tenant belongs to, who to contact about it, and what users see when they sign in."
     />
 
-    <div class="i-strip">
-      <div class="i-tools">
-        <button class="i-btn i-primary" :disabled="saving || !dirty" @click="save">
-          {{ saving ? 'Saving…' : 'Save changes' }}
-        </button>
+    <div class="row mb-2">
+      <div class="col-12 d-flex flex-wrap justify-content-start align-items-center">
+        <button class="operation-btn btn btn-primary"  :disabled="saving || !dirty" @click="save"> {{ saving ? 'Saving…' : 'Save changes' }} </button>
       </div>
     </div>
+
+    
 
     <div style="max-width:760px">
       <div class="i-formsec">

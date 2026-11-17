@@ -382,42 +382,9 @@ onUnmounted(() => clearInterval(poll))
       subtitle="The control plane. Policy changes take effect when they are committed here."
     />
 
-    <div class="i-strip">
-      <label class="i-search">
-        <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-        <input
-          v-model="search"
-          type="search"
-          placeholder="Search controllers, cloud server, network"
-          aria-label="Search controllers"
-        >
-      </label>
+    
 
-      <div class="i-tools">
-        <button class="i-btn" title="Download this list as CSV" @click="exportCsv">
-          <i class="fa-solid fa-download" aria-hidden="true" />
-          <span class="d-none d-sm-inline">CSV</span>
-        </button>
-        <button class="i-btn i-primary" @click="openAdd">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Add controller
-        </button>
-      </div>
-    </div>
-
-    <section v-if="pending.length" class="i-band">
-      <div>
-        <div class="i-bt">
-          <span class="i-fdot" aria-hidden="true" />
-          Uncommitted policy changes
-        </div>
-        <p class="i-bs">
-          {{ pending.length === 1
-            ? `${pending[0].name} is holding changes that are not live yet.`
-            : `${pending.length} controllers are holding changes that are not live yet.` }}
-          Until they are committed, the rules you edited are not enforcing.
-        </p>
-      </div>
-    </section>
+    
 
     <DataTable
       :columns="columns"
@@ -425,20 +392,21 @@ onUnmounted(() => clearInterval(poll))
       :total="total"
       :loading="loading"
       v-model:page="page"
-      v-model:perPage="perPage"
+      v-model:perPage="perPage" v-model:search="search"
       :sort="sort"
       :dir="dir"
       @sort="onSort"
       @selection="selectedIds = $event"
       @row-click="openView"
     >
+      <template #tools>
+        <button class="operation-btn btn btn-primary"  @click="openAdd"> Add </button>
+        <button class="operation-btn btn btn-success"  title="Download this list as CSV" @click="exportCsv"> CSV </button>
+      </template>
+
       <template #bulk="{ ids }">
-        <button class="i-btn i-sm i-primary" @click="commitSelected">
-          Commit {{ ids.length }}
-        </button>
-        <button class="i-btn i-sm i-danger ms-1" @click="deleteOpen = true">
-          Delete
-        </button>
+        <button class="operation-btn btn btn-primary"  @click="commitSelected"> Commit {{ ids.length }} </button>
+        <button class="operation-btn btn btn-danger"  @click="deleteOpen = true"> Delete </button>
       </template>
 
       <template #actions="{ row }">
@@ -460,17 +428,6 @@ onUnmounted(() => clearInterval(poll))
         >Stop</button>
       </template>
 
-      <template #empty>
-        <EmptyState
-          :icon="search ? 'fa-magnifying-glass' : 'fa-inbox'"
-          :title="search ? `Nothing matches “${search}”` : 'No controllers yet'"
-          :body="search
-            ? 'Try a shorter term, or clear the search to see everything.'
-            : 'A controller is the control plane for a cloud server. Add one to start enforcing policy.'"
-          :action-label="search ? 'Clear search' : 'Add controller'"
-          @action="search ? (search = '') : openAdd()"
-        />
-      </template>
     </DataTable>
 
     <!-- read first, edit second: the panel opens on the row you clicked and
@@ -563,7 +520,6 @@ onUnmounted(() => clearInterval(poll))
     <ConfirmModal
       v-model:open="deleteOpen"
       :title="`Delete ${selectedIds.length} controller${selectedIds.length === 1 ? '' : 's'}?`"
-      confirm-label="Delete"
       @confirm="deleteSelected"
     >
       <strong class="i-named">{{ selectedNames }}</strong> will be removed, with the

@@ -66,13 +66,13 @@ async function run () {
     >
     </PageHeader>
 
-    <div class="i-strip">
-      <div class="i-tools">
-        <button class="i-btn i-primary" :disabled="running" @click="run">
-          {{ running ? 'Running…' : 'Run test' }}
-        </button>
+    <div class="row mb-2">
+      <div class="col-12 d-flex flex-wrap justify-content-start align-items-center">
+        <button class="operation-btn btn btn-primary"  :disabled="running" @click="run"> {{ running ? 'Running…' : 'Run test' }} </button>
       </div>
     </div>
+
+    
 
     <div style="max-width:640px">
       <div v-for="r in results" :key="r.label" class="i-checkrow">

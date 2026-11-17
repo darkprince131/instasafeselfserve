@@ -330,20 +330,19 @@ onMounted(load)
     <PageHeader :title="cfg.title" :subtitle="cfg.subtitle">
     </PageHeader>
 
-    <div class="i-strip">
-      <div class="i-tools">
-        <button
-          v-if="cfg.passwordAction" class="i-btn" @click="openPassword"
-        >{{ cfg.passwordAction }}</button>
-        <button
-          v-if="cfg.testLabel" class="i-btn" :disabled="testing" @click="sendTest"
-        >{{ testing ? 'Sending…' : cfg.testLabel }}</button>
-        <button
-          v-if="!cfg.readOnly" class="i-btn i-primary"
-          :disabled="saving || !dirty" @click="save"
-        >{{ saving ? 'Saving…' : 'Save changes' }}</button>
+    <div class="row mb-2">
+      <div class="col-12 d-flex flex-wrap justify-content-start align-items-center">
+        <button class="operation-btn btn btn-primary"
+          v-if="cfg.passwordAction"  @click="openPassword"> {{ cfg.passwordAction }} </button>
+        <button class="operation-btn btn btn-primary"
+          v-if="cfg.testLabel"  :disabled="testing" @click="sendTest"> {{ testing ? 'Sending…' : cfg.testLabel }} </button>
+        <button class="operation-btn btn btn-primary"
+          v-if="!cfg.readOnly" 
+          :disabled="saving || !dirty" @click="save"> {{ saving ? 'Saving…' : 'Save changes' }} </button>
       </div>
     </div>
+
+    
 
     <div style="max-width:760px">
       <div v-for="[heading, fields] in cfg.sections" :key="heading" class="i-formsec">
@@ -441,7 +440,7 @@ onMounted(load)
       </div>
       <template #footer>
         <button class="btn btn-success nav-btn"  :disabled="pwSaving" @click="savePassword"><span>{{ pwSaving ? 'Saving…' : 'Save' }}</span></button>
-        <button class="btn btn-danger nav-btn"  @click="pwOpen = false">Cancel</button>
+        <button class="btn btn-danger nav-btn"  @click="pwOpen = false">Reset</button>
 
 
       </template>

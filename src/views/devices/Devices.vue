@@ -398,8 +398,8 @@ onMounted(async () => {
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-success nav-btn"  :disabled="addSaving" @click="saveDevice"><span>{{ addSaving ? 'Saving…' : 'Add device' }}</span></button>
-        <button class="btn btn-danger nav-btn"  @click="addOpen = false">Cancel</button>
+        <button class="btn btn-success nav-btn"  :disabled="addSaving" @click="saveDevice"><span>{{ addSaving ? 'Saving…' : 'Save' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="addOpen = false">Reset</button>
 
 
       </template>

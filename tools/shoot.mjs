@@ -118,6 +118,7 @@ const BARE_READY = 'document.readyState === "complete" && !!document.querySelect
  */
 await send('Page.navigate', { url: BASE + '/signin' }, sessionId)
 await sleep(900)
+await evaluate(`localStorage.setItem('i365.theme', ${JSON.stringify(process.env.THEME || 'light')}); true`).catch(() => {})
 await evaluate(`localStorage.setItem('i365.trial', JSON.stringify({
   signedIn: true, name: 'Veno', adminEmail: 'admin@example.com',
   createdAt: new Date().toISOString(),
@@ -126,7 +127,7 @@ await evaluate(`localStorage.setItem('i365.trial', JSON.stringify({
 })); true`).catch(() => {})
 
 for (const spec of specs) {
-  const [route, name, ready_expr] = spec.split('::')
+  const [route, name, ready_expr, after_expr] = spec.split('::')
   const expr = !ready_expr ? LIST_READY : ready_expr === '-' ? BARE_READY : ready_expr
   await send('Page.navigate', { url: BASE + route }, sessionId)
 
@@ -137,6 +138,14 @@ for (const spec of specs) {
     const ok = await evaluate(expr).catch(() => false)
     if (ok) { ready = true; break }
   }
+  /* A state that only exists after an interaction - the add panel, the
+     delete confirm, the user menu - is reached by running it here, once the
+     screen is loaded, rather than by capturing a different URL. */
+  if (after_expr) {
+    await evaluate(after_expr).catch((e) => console.log('  after: ' + e.message))
+    await sleep(900)
+  }
+
   // let fonts settle and any transition finish
   await evaluate('document.fonts ? document.fonts.ready.then(() => true) : true').catch(() => {})
   await sleep(450)
