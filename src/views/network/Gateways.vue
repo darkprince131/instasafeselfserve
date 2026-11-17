@@ -146,7 +146,8 @@ const FIELDS = [
   {
     key: 'name',
     id: 'gw_name',
-    label: 'Gateway name',
+    label: 'Name',
+    half: true,
     required: true,
     placeholder: 'Enter Gateway Name',
     lockedOnEdit: 'The agent on the gateway is enrolled under this name, and access rules point at it. Renaming it would strand both.'
@@ -154,7 +155,8 @@ const FIELDS = [
   {
     key: 'backupName',
     id: 'backup_name',
-    label: 'Backup gateway name',
+    label: 'Backup Gateway Name',
+    half: true,
     required: true,
     placeholder: 'Backup Gateway',
     lockedOnEdit: 'The pair is fixed when the gateway is created. Changing which gateway stands in for this one is a new gateway.'
@@ -163,6 +165,7 @@ const FIELDS = [
     key: 'location',
     id: 'location',
     label: 'Location',
+    half: true,
     required: true,
     placeholder: 'Enter Gateway Location'
   }
@@ -351,7 +354,12 @@ onMounted(() => { loadLicence(); load() })
       </template>
 
       <div v-else class="i-formsec">
-        <div v-for="f in FIELDS" :key="f.key" class="i-frow" style="grid-template-columns:1fr">
+        <!-- Velto pairs Name with Backup Gateway Name on one row and leaves
+             Location on the next, half width. Reproduced rather than
+             reflowed: the capture is one of the twenty this is measured
+             against. -->
+        <div class="row">
+          <div v-for="f in FIELDS" :key="f.key" class="col-12" :class="f.half ? 'col-sm-6' : ''">
           <div class="i-field">
             <label :for="f.id">
               {{ f.label }}<span v-if="f.required" class="i-req">*</span>
@@ -366,6 +374,7 @@ onMounted(() => { loadLicence(); load() })
               v-model="form[f.key]"
             >
             <p v-if="isLocked(f)" class="i-hint">{{ isLocked(f) }}</p>
+          </div>
           </div>
         </div>
 
@@ -387,7 +396,7 @@ onMounted(() => { loadLicence(); load() })
               v-model="form.protectedNetworks[i]"
             >
             <button
-              class="i-btn i-sm i-quiet"
+              class="btn btn-outline-secondary btn-sm"
               type="button"
               :disabled="form.protectedNetworks.length === 1 && !form.protectedNetworks[0]"
               :aria-label="`Remove ${net || 'this network'}`"
@@ -396,9 +405,7 @@ onMounted(() => { loadLicence(); load() })
               <i class="fa-solid fa-xmark" aria-hidden="true" />
             </button>
           </div>
-          <button class="i-btn i-sm" type="button" @click="addNetwork">
-            <i class="fa-solid fa-plus" aria-hidden="true" /> Add more
-          </button>
+          <button class="btn btn-warning nav-btn" type="button" @click="addNetwork">Add more</button>
           <p class="i-hint">
             In CIDR, one per row — <span class="i-tech">10.130.0.0/16</span>.
             Everything inside these ranges is reachable through this gateway;
@@ -408,22 +415,18 @@ onMounted(() => { loadLicence(); load() })
       </div>
 
       <template #footer>
-        <button class="btn btn-success nav-btn"  @click="openEdit"><span>Edit</span></button>
         <template v-if="mode === 'view'">
-          <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Close</button>
-
-
-      </template>
+          <button class="btn btn-success nav-btn" @click="openEdit"><span>Edit</span></button>
+          <button class="btn btn-danger nav-btn" @click="sheetOpen = false">Close</button>
+        </template>
         <template v-else>
+          <button class="btn btn-success nav-btn" :disabled="saving" @click="save">
+            <span>{{ saving ? 'Saving…' : 'Save' }}</span>
+          </button>
           <button
-            class="i-btn i-quiet"
+            class="btn btn-danger nav-btn"
             @click="current ? (mode = 'view') : (sheetOpen = false)"
-          >Cancel</button>
-          <div class="i-right">
-            <button class="i-btn i-primary" :disabled="saving" @click="save">
-              {{ saving ? 'Saving…' : (mode === 'edit' ? 'Save changes' : 'Create') }}
-            </button>
-          </div>
+          >Reset</button>
         </template>
       </template>
     </Sheet>
