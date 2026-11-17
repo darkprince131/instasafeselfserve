@@ -285,7 +285,16 @@ only set on Netlify. A bug on the HTTP path — a missing id, a column mismatch,
 — passes locally and fails live. Two separate bugs shipped that way. Anything touching
 `src/api/adapters/http.js` or `netlify/functions/` is verified **on the deployed URL**.
 
-Needed before first deploy: a Netlify site, and a Neon database URL in the site's env.
+Origin is `https://github.com/darkprince131/instasafeselfserve` (public, `main`).
+Netlify reads every build setting from `netlify.toml`, so importing the repo needs nothing
+typed in: command `npm run build`, publish `dist`, functions `netlify/functions`, Node 22.
+
+**`VITE_BACKEND` decides which adapter ships, and leaving it unset is a working deploy.**
+Unset, the site runs the mock adapter: IndexedDB in each visitor's own browser, no
+database, every screen and flow live. The cost is that a sandbox lives in one browser on
+one device and goes when its storage does. Set it to `http` only once a Neon
+`DATABASE_URL` is in the site's env — the HTTP path is the one that cannot be verified
+locally, so it goes live after the mock deploy, not with it.
 
 ---
 
