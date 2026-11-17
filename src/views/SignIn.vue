@@ -1,36 +1,50 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { ref, nextTick } from 'vue'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import api from '../api'
-import Mark from '../components/ui/Mark.vue'
+import { startSession, tenant } from '../lib/trial.js'
 
 /**
- * Sign-in, including the real MFA step.
+ * Production's sign-in, markup-for-markup, and the gate that was never wired.
  *
- * Any password is accepted for the seeded demo accounts — password hashing is
- * the backend's job and faking it would prove nothing. The MFA step, by
- * contrast, is genuinely verified, so if the demo admin has enrolled an
- * authenticator the only way past this screen is a correct TOTP code.
+ * Veno's page is `.background-container` + `.main-container > .glass-card`,
+ * styled entirely by pagescss.css — which App.vue attaches for bare routes
+ * and detaches again, because it redefines `body`, `.form-control` and
+ * `.btn-primary` and would repaint the console if it stayed. The flow is
+ * velto's two steps: username, then password, then MFA where it is enrolled.
+ *
+ * **Any password signs in, on purpose.** A visitor cannot know a seeded
+ * account's password, so a real check could only ever refuse them; two people
+ * got stuck on exactly that screen. The note under the form says so rather
+ * than implying a check that is not made. What is real: `auth.setPassword`
+ * still hashes with PBKDF2 and still enforces every policy rule, and the MFA
+ * step verifies a genuine RFC 6238 code — a wrong one is refused.
  */
 
 const router = useRouter()
-const step = ref('credentials')
+const route = useRoute()
+const step = ref('username')
 const username = ref('admin')
-const password = ref('demo')
+const password = ref('')
+const showPassword = ref(false)
 const code = ref('')
 const error = ref('')
 const busy = ref(false)
 const userId = ref('')
-const otpSent = ref(false)
+const sentTo = ref('')
 
-/* `busy` is cleared in a `finally`, not after the await.
- *
- * It was cleared after, so anything that threw left the button saying
- * "Checking…" for ever with no error and no way back. That is exactly what
- * the hosted site did: `auth.login` had no HTTP implementation, the adapter
- * threw `No HTTP implementation for "auth.login"`, and the sign-in hung.
- * The missing route is implemented now, but a route that throws must still
- * surface as a message rather than a spinner that never stops. */
+async function next () {
+  if (!username.value.trim()) return
+  step.value = 'password'
+  await nextTick()
+  document.getElementById('password')?.focus()
+}
+
+function editUsername () {
+  step.value = 'username'
+  error.value = ''
+}
+
 async function submit () {
   error.value = ''; busy.value = true
   try {
@@ -38,7 +52,7 @@ async function submit () {
     if (!res?.ok) { error.value = res?.error || 'Sign-in failed.'; return }
     userId.value = res.user.id
     if (res.mfaRequired) { step.value = 'mfa'; return }
-    router.push('/dashboard')
+    enter(res.user)
   } catch (e) {
     error.value = e?.message || 'Sign-in failed. Try again.'
   } finally { busy.value = false }
@@ -49,19 +63,26 @@ async function verify () {
   try {
     const res = await api.auth.verifyMfa({ userId: userId.value, code: code.value })
     if (!res?.ok) { error.value = res?.error || 'That code is not valid.'; code.value = ''; return }
-    router.push('/dashboard')
+    enter(res.user)
   } catch (e) {
     error.value = e?.message || 'Could not check that code.'; code.value = ''
   } finally { busy.value = false }
 }
 
-/** The fallback for anyone without an authenticator: a real code, delivered
- *  to the Demo Inbox instead of to a phone. */
+/** A code the visitor can actually read, in the Demo Inbox. */
 async function sendOtp () {
-  const res = await api.auth.sendOtp({ userId: userId.value, channel: 'sms' })
-  otpSent.value = true
-  error.value = ''
-  alert('Code sent to ' + res.sentTo + '.\n\nOpen the Demo Inbox after signing in, or use the authenticator code.')
+  try {
+    const res = await api.auth.sendOtp({ userId: userId.value, channel: 'sms' })
+    sentTo.value = res.sentTo || 'your phone'
+  } catch (e) { error.value = e?.message || 'Could not send a code.' }
+}
+
+function enter (user) {
+  startSession({
+    adminEmail: user?.email || username.value,
+    name: tenant.value.name || 'Trial'
+  })
+  router.push(route.query.next || '/dashboard')
 }
 
 function onCode (e) {
@@ -71,100 +92,115 @@ function onCode (e) {
 </script>
 
 <template>
-  <div class="i-app" style="grid-template-columns:minmax(0,1fr);height:100dvh">
-    <main class="i-main">
-      <div class="signin-wrap">
-        <div class="signin-card">
-          <div class="d-flex align-items-center gap-2 mb-4">
-            <Mark :size="30" />
-            <strong style="font-size:16px;letter-spacing:-.016em">InstaSafe</strong>
+  <div class="background-container" />
+  <div class="main-container">
+    <div class="glass-card">
+      <img src="/prod/ext/companies/instasafe.png" alt="Instasafe" class="logo img-fluid d-block mx-auto">
+
+      <section id="CompanyMemberAccountController">
+        <!-- 1 · who -->
+        <template v-if="step === 'username'">
+          <h4>Signin</h4>
+          <form @submit.prevent="next">
+            <div class="mb-3 username-input-container mb-4">
+              <label for="username" class="form-label visually-hidden">Username</label>
+              <input
+                type="text" class="form-control" name="username" id="username"
+                placeholder="Username" required autocomplete="off" v-model="username"
+              >
+            </div>
+            <span><button type="submit" class="btn btn-primary">Next</button></span>
+          </form>
+          <p class="text-center mt-4 mb-0 terms">
+            On Clicking Signin button,You agree to our <br>
+            <a href="https://instasafe.com/terms-and-conditions" class="text-decoration-none">Terms of Use</a>
+            &amp;
+            <a href="https://instasafe.com/privacy-policy" class="text-decoration-none">Privacy Policy</a>
+          </p>
+          <p class="text-center mt-3 mb-0 terms">
+            No tenant yet? <RouterLink to="/signup">Start a free trial</RouterLink>
+          </p>
+        </template>
+
+        <!-- 2 · password -->
+        <template v-else-if="step === 'password'">
+          <div class="header-section">
+            <button type="button" class="back-button" aria-label="Back" @click="editUsername">
+              <i class="fas fa-arrow-left" />
+            </button>
+            <h4>Signin</h4>
+            <span class="w-24" />
           </div>
-
-          <template v-if="step === 'credentials'">
-            <h1>Sign in</h1>
-            <p class="i-sub mb-4">i365 demo tenant</p>
-
-            <form @submit.prevent="submit">
-              <div class="i-field mb-3">
-                <label for="u">Username or email</label>
-                <input id="u" class="i-ctl" v-model="username" autocomplete="username">
-              </div>
-              <div class="i-field mb-3">
-                <label for="p">Password</label>
-                <input id="p" class="i-ctl" type="password" v-model="password" autocomplete="current-password">
-              </div>
-              <p v-if="error" class="i-err mb-3">
-                <i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true" />{{ error }}
-              </p>
-              <button class="i-btn i-primary w-100" style="min-height:38px" :disabled="busy">
-                {{ busy ? 'Checking…' : 'Sign in' }}
+          <form @submit.prevent="submit">
+            <div class="mb-3 username-input-container disabled-container">
+              <label for="signin_user" class="form-label visually-hidden">Username</label>
+              <input id="signin_user" type="text" class="form-control" :value="username" disabled>
+              <span class="edit-btn" role="button" aria-label="Change username" @click="editUsername">
+                <i class="fas fa-pen" />
+              </span>
+            </div>
+            <div class="mb-4 password-input-container">
+              <label for="password" class="form-label visually-hidden">Password</label>
+              <input
+                :type="showPassword ? 'text' : 'password'" class="form-control" id="password"
+                placeholder="Password" autocomplete="current-password" v-model="password"
+              >
+              <span class="password-toggle" role="button" :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                    @click="showPassword = !showPassword">
+                <i class="fas" :class="showPassword ? 'fa-eye-slash' : 'fa-eye'" />
+              </span>
+            </div>
+            <p v-if="error" class="selection-text text-center">{{ error }}</p>
+            <span>
+              <button type="submit" class="btn btn-primary" :disabled="busy">
+                {{ busy ? 'Checking…' : 'Signin' }}
               </button>
-            </form>
+            </span>
+          </form>
+          <p class="selection-text text-center mt-3 mb-0">
+            Any password signs you in. A seeded account's password is not
+            something a visitor could know, so checking it could only ever
+            lock you out.
+          </p>
+        </template>
 
-            <div class="i-demo-note mt-4">
-              <strong style="color:var(--i-ink)">Administrator console.</strong>
-              Sign in as <code class="i-tech">admin</code> with the password
-              <code class="i-tech">demo</code>, which is filled in above —
-              though any password gets in. There is no way for a visitor to
-              know a seeded account's password, so checking it could only ever
-              lock them out. Setting a password still hashes it with PBKDF2,
-              and the MFA step after this is genuinely verified.
-            </div>
-
-            <div class="i-demo-note mt-2">
-              <strong style="color:var(--i-ink)">Same product, a different seat.</strong>
-              An administrator account lands here, on the console that runs the
-              tenant. Everybody else lands on
-              <RouterLink to="/portal/signin">their own access</RouterLink> —
-              the same product showing what that person is allowed to do.
-            </div>
-          </template>
-
-          <template v-else>
-            <h1>Two-factor</h1>
-            <p class="i-sub mb-4">Enter the six-digit code from your authenticator.</p>
-
+        <!-- 3 · the real second factor -->
+        <template v-else>
+          <div class="header-section">
+            <button type="button" class="back-button" aria-label="Back" @click="step = 'password'">
+              <i class="fas fa-arrow-left" />
+            </button>
+            <h4>Verify</h4>
+            <span class="w-24" />
+          </div>
+          <p class="selection-text text-center">
+            Enter the six-digit code from your authenticator.
+          </p>
+          <div class="mb-4">
+            <label for="otp" class="form-label visually-hidden">Six-digit code</label>
             <input
-              class="i-otp mb-3" inputmode="numeric" autocomplete="one-time-code"
-              placeholder="000000" aria-label="Six-digit code"
-              :value="code" @input="onCode"
+              id="otp" class="form-control text-center" inputmode="numeric" autocomplete="one-time-code"
+              placeholder="000000" :value="code" @input="onCode"
             >
-            <p v-if="error" class="i-err mb-3">
-              <i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true" />{{ error }}
-            </p>
-
-            <button class="i-btn i-primary w-100 mb-2" style="min-height:38px"
-                    :disabled="busy || code.length !== 6" @click="verify">
+          </div>
+          <p v-if="error" class="selection-text text-center">{{ error }}</p>
+          <span>
+            <button type="button" class="btn btn-primary" :disabled="busy || code.length !== 6" @click="verify">
               {{ busy ? 'Verifying…' : 'Verify' }}
             </button>
-            <button class="i-btn i-quiet w-100" @click="sendOtp">
-              Send a code by SMS instead
-            </button>
-
-            <div class="i-demo-note mt-4">
-              This is real RFC 6238 verification. A wrong code is rejected.
-            </div>
-          </template>
-        </div>
-      </div>
-    </main>
+          </span>
+          <p class="resend-otp-text text-center d-block mt-3 mb-0">
+            <template v-if="sentTo">Code sent to {{ sentTo }} — read it in the Trial panel's Inbox.</template>
+            <template v-else>
+              No authenticator?
+              <a class="resend-otp-link" role="button" @click="sendOtp">Send a code instead</a>
+            </template>
+          </p>
+          <p class="selection-text text-center mt-3 mb-0">
+            This is real RFC 6238 verification. A wrong code is refused.
+          </p>
+        </template>
+      </section>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.signin-wrap {
-  display: grid;
-  place-items: center;
-  min-height: 100dvh;
-  padding: 40px 20px;
-  background: var(--i-canvas);
-}
-.signin-card { width: 100%; max-width: 348px; }
-.signin-card h1 {
-  margin: 0 0 4px;
-  font-size: 25px;
-  font-weight: 450;
-  letter-spacing: -.024em;
-  color: var(--i-ink);
-}
-</style>

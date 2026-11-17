@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { flatRoutes } from './nav.js'
 import { RESOURCES } from '../resources.js'
+import { tenant } from '../lib/trial.js'
 
 /**
  * 54 of the console's screens are the same list template with different
@@ -75,7 +76,16 @@ const routes = [
     path: '/signin',
     name: 'signin',
     component: () => import('../views/SignIn.vue'),
-    meta: { bare: true }
+    meta: { bare: true, title: 'SignIn' }
+  },
+  /* The trial's own door. Production has no sign-up at all — tenants are
+     provisioned by InstaSafe — so this is the one route with no capture to
+     match, and it is built from the sign-in page it sits beside. */
+  {
+    path: '/signup',
+    name: 'signup',
+    component: () => import('../views/SignUp.vue'),
+    meta: { bare: true, title: 'Start a trial' }
   },
   /**
    * The end-user portal.
@@ -156,7 +166,10 @@ routes.push({
 routes.push({
   path: '/:pathMatch(.*)*',
   component: () => import('../views/NotFound.vue'),
-  meta: { title: 'Not found' }
+  /* Veno's 404 is its own black page, not a console screen — it brings its
+     own stylesheet and has no header or sidebar. `bare` is what keeps the
+     shell off it. */
+  meta: { bare: true, title: '404 - Page Not Found' }
 })
 
 const router = createRouter({
@@ -165,9 +178,34 @@ const router = createRouter({
   scrollBehavior: () => ({ top: 0 })
 })
 
+/**
+ * The sign-in gate.
+ *
+ * `SignIn.vue` has worked since the fork and was never wired to anything:
+ * visitors landed straight on the dashboard, which is the one thing a
+ * self-serve trial cannot do — there is no tenant to land in until somebody
+ * has asked for one. Everything outside the signed-out pages now requires a
+ * session, and a visitor with none is sent to sign-up rather than sign-in,
+ * because a first-time visitor has no account to sign in to.
+ *
+ * `next` carries where they were going, so a shared link to a screen still
+ * lands on that screen once they are in.
+ */
+const OPEN = new Set(['/signin', '/signup'])
+
+router.beforeEach((to) => {
+  if (OPEN.has(to.path)) return true
+  /* The end-user portal has its own session, held in sessionStorage by
+     lib/portal-session.js, and its own sign-in. It is not the admin console
+     and this gate is not its gate. */
+  if (to.path.startsWith('/portal')) return true
+  if (tenant.value.signedIn) return true
+  return { path: '/signup', query: to.fullPath === '/' ? {} : { next: to.fullPath } }
+})
+
 router.afterEach((to) => {
   const label = to.meta?.label || to.meta?.title
-  document.title = label ? `${label} — InstaSafe i365` : 'InstaSafe i365'
+  document.title = label ? `${label} — InstaSafe` : 'InstaSafe'
 })
 
 export default router

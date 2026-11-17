@@ -514,21 +514,21 @@ export const RESOURCES = {
       { key: 'devicePolicy', name: 'enable_device_policy', label: 'Device Policy', type: 'switch' },
       { key: 'autoSuspend', name: 'auto_suspend_users', label: 'Auto Suspend Users', type: 'switch' }
     ],
-    title: 'User groups',
-    subtitle: 'Groups carry policy. A user inherits every rule attached to every group they are in.',
+    title: 'Groups',
+    subtitle: 'Allows you to group users based on their roles to access specific applications',
     resource: 'groups',
-    primaryAction: 'Add group',
+    primaryAction: 'Add',
     searchFields: ['name', 'authType', 'description'],
-    /* Velto's seven columns. The three switches it prints are the three it
-       judges worth seeing from the list; the rest live on the form. */
+    /* Veno's seven columns, centred from Auth-Type onwards exactly as the
+       capture has them, with the three switches as Enabled / Disabled pills. */
     columns: [
-      { key: 'name', label: 'Group', bold: true },
-      { key: 'authType', label: 'Auth-Type' },
-      { key: 'members', label: 'Members', align: 'right', num: true },
-      { key: 'accessRules', label: 'Access Rules', align: 'right', num: true },
-      { key: 'twoFactor', label: 'Two Factor Authentication', bool: true },
-      { key: 'deviceBinding', label: 'Device Binding', bool: true },
-      { key: 'deviceChecks', label: 'Device Checks', bool: true }
+      { key: 'name', label: 'Group' },
+      { key: 'authType', label: 'Auth-Type', align: 'center', capitalize: true },
+      { key: 'members', label: 'Members', align: 'center' },
+      { key: 'accessRules', label: 'Access Rules', align: 'center' },
+      { key: 'twoFactor', label: 'Two Factor Authentication', align: 'center', bool: true },
+      { key: 'deviceBinding', label: 'Device Binding', align: 'center', bool: true },
+      { key: 'deviceChecks', label: 'Device Checks', align: 'center', bool: true }
     ]
   },
 

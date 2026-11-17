@@ -180,20 +180,36 @@ watch(() => form.value.type, (t) => {
   }
 })
 
+/**
+ * Veno's four columns. It names two of them after the union of what they can
+ * hold - "IP / FQDN / URL / Host" and "Port / Landing Page" - because an
+ * application's type decides which it is. Owner, gateway, recording and
+ * status were the redesign's; they are still on the record.
+ */
 const columns = [
-  { key: 'name', label: 'Application', bold: true },
+  { key: 'name', label: 'Name' },
   { key: 'type', label: 'Type', upper: true },
-  { key: 'host', label: 'Host', mono: true },
-  { key: 'port', label: 'Port', mono: true, align: 'right' },
-  { key: 'owner', label: 'Owner' },
-  { key: 'gateway', label: 'Gateway', mono: true,
-    cell: (v) => v || 'unassigned',
-    pill: (v) => v ? null : 'att' },
-  { key: 'sessionRecording', label: 'Recording', bool: true },
-  { key: 'status', label: 'Status',
-    cell: (v) => v.charAt(0).toUpperCase() + v.slice(1),
-    pill: (v) => v === 'active' ? null : 'bad' }
+  { key: 'host', label: 'IP / FQDN / URL / Host' },
+  { key: 'port', label: 'Port / Landing Page' }
 ]
+
+/** The list as it stands on screen, as a file. */
+function exportCsv () {
+  const cell = (row, col) => {
+    const v = col.cell ? col.cell(row[col.key], row) : row[col.key]
+    return '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  }
+  const body = [
+    columns.map(c => '"' + c.label + '"').join(','),
+    ...rows.value.map(row => columns.map(col => cell(row, col)).join(','))
+  ].join(String.fromCharCode(10))
+  const url = URL.createObjectURL(new Blob([body], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = 'applications.csv'
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 
 const chips = computed(() => [
   { key: 'all', label: 'All', n: total.value },
@@ -283,75 +299,32 @@ onMounted(async () => {
 <template>
   <div class="container-fluid i-page">
     <PageHeader
-      collection="applications"
       title="Applications"
-      subtitle="What people connect to. RDP, SSH and VNC applications can be launched from here."
-    >
-    </PageHeader>
+      subtitle="List of applications that have been configured for access control"
+    />
 
-    <div class="i-strip">
-      <div class="i-ftabs">
-        <button
-          v-for="c in chips" :key="c.key"
-          class="i-chip" :class="{ 'is-on': filter === c.key }"
-          :aria-pressed="filter === c.key" @click="filter = c.key"
-        >
-          {{ c.label }}<span v-if="c.n" class="i-n">{{ c.n }}</span>
-        </button>
-      </div>
-      <div class="i-right">
-        <label class="i-search">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <input v-model="search" type="search" placeholder="Search application, host or owner">
-        </label>
-        <div class="i-tools">
-        <button class="i-btn"><i class="fa-solid fa-download" aria-hidden="true" /> Export</button>
+    <DataTable
+      ref="table" :columns="columns" :rows="rows" :total="total" :loading="loading"
+      v-model:page="page" v-model:perPage="perPage" v-model:search="search" :sort="sort" :dir="dir"
+      :row-action="{ label: 'Connect', when: (r) => ['rdp','ssh','vnc'].includes(r.type) }"
+      @sort="onSort" @selection="selectedIds = $event"
+      @row-action="connect" @row-click="openEdit"
+    >
+      <!-- Veno's four: Add, Bulk Add, CSV, Delete. No Graph on this one. -->
+      <template #tools>
+        <button class="operation-btn btn btn-primary" :disabled="sheetOpen" @click="openAdd"> Add </button>
         <ListTools
           kind="generic" resource="applications" noun="application"
           :add-columns="BULK_COLUMNS" :rows="rows" :total="total"
           @apply="onBulkApplied"
         />
-        <button class="i-btn i-primary" @click="openAdd">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Add application
-        </button>
-        </div>
-      </div>
-    </div>
-
-    <DataTable
-      ref="table" :columns="columns" :rows="rows" :total="total" :loading="loading"
-      v-model:page="page" v-model:perPage="perPage" :sort="sort" :dir="dir"
-      :row-action="{ label: 'Connect', when: (r) => ['rdp','ssh','vnc'].includes(r.type) }"
-      @sort="onSort" @selection="selectedIds = $event"
-      @row-action="connect" @row-click="openEdit"
-    >
-      <template #bulk>
-        <button class="i-btn i-sm i-danger" @click="confirmOpen = true">Delete</button>
-      </template>
-      <template #empty>
-        <!-- "No applications of this type" was shown on All as well, where
-             there is no type to blame. An empty tenant and a filter that
-             hides everything need different sentences. -->
-        <EmptyState
-          v-if="search"
-          icon="fa-magnifying-glass"
-          title="Nothing matches that search"
-          body="Try a shorter term, or clear the search."
-        />
-        <EmptyState
-          v-else-if="filter !== 'all'"
-          icon="fa-filter"
-          title="No applications of this type"
-          body="Switch back to All to see every application."
-        />
-        <EmptyState
-          v-else
-          icon="fa-grip"
-          title="No applications yet"
-          body="An application is a host and a port that an access rule can point at. Nothing is reachable until one exists."
-          action-label="Add application"
-          @action="openAdd"
-        />
+        <button class="operation-btn btn btn-success" @click="exportCsv"> CSV </button>
+        <button class="operation-btn btn btn-danger" @click="confirmOpen = true"> Delete </button>
+        <button
+          v-for="c in chips" :key="c.key"
+          class="operation-btn btn" :class="filter === c.key ? 'btn-primary' : 'btn-secondary'"
+          :aria-pressed="filter === c.key" @click="filter = c.key"
+        > {{ c.label }} </button>
       </template>
     </DataTable>
 
@@ -446,12 +419,10 @@ onMounted(async () => {
       </div>
 
       <template #footer>
-        <button class="i-btn i-quiet" @click="sheetOpen = false">Cancel</button>
-        <div class="i-right">
-          <button class="i-btn i-primary" :disabled="saving" @click="save">
-            {{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Save application') }}
-          </button>
-        </div>
+        <button class="btn btn-success nav-btn"  :disabled="saving" @click="save"><span>{{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Save application') }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Cancel</button>
+
+
       </template>
     </Sheet>
 

@@ -116,23 +116,45 @@ const sourceOptions = computed(() => {
 const destOptions = computed(() =>
   form.value.destType === 'application' ? applications.value.map(a => a.name) : [])
 
+/**
+ * Veno's six, with its own abbreviations - "Src Type", "Dst Type" - and its
+ * own heading for the action column, which it calls "Actions" even though it
+ * holds one allow/deny badge. Priority, schedule and the enabled switch were
+ * the redesign's columns; priority still drives evaluation order and is on
+ * the form, where it can be changed.
+ */
 const columns = [
-  { key: 'priority', label: '#', mono: true, align: 'right' },
-  { key: 'name', label: 'Rule', bold: true },
-  { key: 'sourceType', label: 'Source type',
-    cell: (v) => SOURCE_TYPES.find(s => s.key === v)?.label || v },
+  { key: 'name', label: 'Name' },
+  { key: 'sourceType', label: 'Src Type',
+    cell: (v) => String(SOURCE_TYPES.find(s => s.key === v)?.label || v).toLowerCase() },
   { key: 'source', label: 'Source',
     cell: (v) => Array.isArray(v) ? (v.join(', ') || '—') : (v || '—') },
-  { key: 'destType', label: 'Dst type',
-    cell: (v) => DEST_TYPES.find(d => d.key === v)?.label || v },
+  { key: 'destType', label: 'Dst Type',
+    cell: (v) => String(DEST_TYPES.find(d => d.key === v)?.label || v).toLowerCase() },
   { key: 'dest', label: 'Destination',
     cell: (v) => Array.isArray(v) ? (v.join(', ') || '—') : (v || '—') },
-  { key: 'schedule', label: 'Schedule', dim: true },
-  { key: 'action', label: 'Action',
+  { key: 'action', label: 'Actions',
     cell: (v) => v.charAt(0).toUpperCase() + v.slice(1),
-    pill: (v) => v === 'deny' ? 'bad' : v === 'bypass' ? 'att' : null },
-  { key: 'enabled', label: 'Enabled', bool: true }
+    pill: (v) => v === 'deny' ? 'bad' : v === 'bypass' ? 'att' : null }
 ]
+
+/** The list as it stands on screen, as a file. */
+function exportCsv () {
+  const cell = (row, col) => {
+    const v = col.cell ? col.cell(row[col.key], row) : row[col.key]
+    return '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  }
+  const body = [
+    columns.map(c => '"' + c.label + '"').join(','),
+    ...rows.value.map(row => columns.map(col => cell(row, col)).join(','))
+  ].join(String.fromCharCode(10))
+  const url = URL.createObjectURL(new Blob([body], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = 'access-rules.csv'
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 
 async function load () {
   loading.value = true
@@ -239,45 +261,23 @@ onMounted(async () => {
 <template>
   <div class="container-fluid i-page">
     <PageHeader
-      collection="accessRules"
-      title="Access rules"
-      subtitle="Evaluated top to bottom. The first rule that matches decides, and the rest never run."
-    >
-    </PageHeader>
-
-    <div class="i-strip">
-      <div class="i-right ms-auto">
-        <label class="i-search">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <input v-model="search" type="search" placeholder="Search rule, source or destination">
-        </label>
-        <div class="i-tools">
-        <RouterLink class="i-btn" to="/access-explorer">
-          <i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true" /> Test a rule
-        </RouterLink>
-        <button class="i-btn i-primary" @click="openAdd">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Add rule
-        </button>
-        </div>
-      </div>
-    </div>
+      title="Access Rules"
+      subtitle="Access control rules to allow access to specific Applications/Application Groups from particular Users/User Groups"
+    />
 
     <DataTable
       ref="table" :columns="columns" :rows="rows" :total="total" :loading="loading"
-      v-model:page="page" v-model:perPage="perPage" :sort="sort" :dir="dir"
+      v-model:page="page" v-model:perPage="perPage" v-model:search="search" :sort="sort" :dir="dir"
       @sort="onSort" @selection="selectedIds = $event" @row-click="openEdit"
     >
-      <template #bulk>
-        <button class="i-btn i-sm i-danger" @click="confirmOpen = true">Delete</button>
-      </template>
-      <template #empty>
-        <EmptyState
-          icon="fa-shield-halved"
-          :title="search ? 'Nothing matches that search' : 'No access rules'"
-          body="With no rules the default deny applies, and nobody reaches anything."
-          :action-label="search ? '' : 'Add rule'"
-          @action="openAdd"
-        />
+      <template #tools>
+        <button class="operation-btn btn btn-primary" :disabled="sheetOpen" @click="openAdd"> Add </button>
+        <button class="operation-btn btn btn-primary" @click="openAdd"> Bulk Add </button>
+        <button class="operation-btn btn btn-success" @click="exportCsv"> CSV </button>
+        <button class="operation-btn btn btn-danger" @click="confirmOpen = true"> Delete </button>
+        <span>
+          <RouterLink class="operation-btn btn btn-success" to="/access-explorer"> Graph </RouterLink>
+        </span>
       </template>
     </DataTable>
 
@@ -410,12 +410,10 @@ onMounted(async () => {
       </div>
 
       <template #footer>
-        <button class="i-btn i-quiet" @click="sheetOpen = false">Cancel</button>
-        <div class="i-right">
-          <button class="i-btn i-primary" :disabled="saving" @click="save">
-            {{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Create rule') }}
-          </button>
-        </div>
+        <button class="btn btn-success nav-btn"  :disabled="saving" @click="save"><span>{{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Create rule') }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Cancel</button>
+
+
       </template>
     </Sheet>
 

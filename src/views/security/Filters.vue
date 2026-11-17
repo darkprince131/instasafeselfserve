@@ -514,12 +514,10 @@ onMounted(load)
       </div>
 
       <template #footer>
-        <button class="i-btn i-quiet" @click="sheetOpen = false">Cancel</button>
-        <div class="i-right">
-          <button class="i-btn i-primary" :disabled="saving || !valid" @click="save">
-            {{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Create') }}
-          </button>
-        </div>
+        <button class="btn btn-success nav-btn"  :disabled="saving || !valid" @click="save"><span>{{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Create') }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Cancel</button>
+
+
       </template>
     </Sheet>
 

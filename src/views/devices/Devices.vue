@@ -3,7 +3,6 @@ import { ref, computed, watch, inject, onMounted } from 'vue'
 import api from '../../api'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import DataTable from '../../components/ui/DataTable.vue'
-import EmptyState from '../../components/ui/EmptyState.vue'
 import Sheet from '../../components/ui/Sheet.vue'
 import ListTools from '../../components/ui/ListTools.vue'
 import GraphView from '../../components/ui/GraphView.vue'
@@ -38,7 +37,7 @@ const refreshStats = inject('refreshStats', () => {})
 const rows = ref([]); const total = ref(0); const loading = ref(true)
 const page = ref(1); const perPage = ref(10)
 const sort = ref(''); const dir = ref('asc')
-const search = ref(''); const filter = ref('pending')
+const search = ref(''); const filter = ref('all')
 const selectedIds = ref([]); const table = ref(null)
 const counts = ref({ pending: 0, approved: 0, rejected: 0 })
 const binding = ref(false)
@@ -81,26 +80,51 @@ async function setStatus (action) {
  * they cannot name — so they belong on the table rather than only in the
  * detail panel. The column chooser hides what a given tenant does not use.
  */
+/**
+ * Veno's own seven columns, in veno's order and wording. The list carried
+ * twelve: user, agent version, IP, location and last-seen were the
+ * redesign's. They are still on the record, one row-click away.
+ *
+ * The name is a bold blue link in production and the timestamps are absolute
+ * ("2026-06-26 15:56:58"), not "3 days ago" — a relative time is friendlier
+ * and it is the kind of small difference a visitor notices twice.
+ */
+const stamp = (v) => {
+  if (!v) return '—'
+  const d = new Date(v)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
+         `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
 const columns = [
-  { key: 'name', label: 'Device', bold: true },
-  { key: 'username', label: 'User', dim: true },
-  { key: 'macAddress', label: 'MAC address', mono: true },
-  { key: 'os', label: 'Operating system' },
-  { key: 'serialNumber', label: 'Serial number', mono: true, cell: (v) => v || '—' },
-  { key: 'uuid', label: 'UUID', mono: true, cell: (v) => v || '—' },
-  { key: 'agentVersion', label: 'Agent', mono: true },
-  { key: 'ipAddress', label: 'IP address', mono: true },
-  { key: 'city', label: 'Location' },
-  { key: 'enrolledAt', label: 'Registered on', cell: fmtAgo, dim: true },
-  { key: 'lastSeenAt', label: 'Last seen', cell: fmtAgo, dim: true },
+  { key: 'name', label: 'Name', link: true },
+  { key: 'macAddress', label: 'Mac Address' },
+  { key: 'os', label: 'OS' },
+  { key: 'serialNumber', label: 'Serial Number', cell: (v) => v || '—' },
+  { key: 'uuid', label: 'UUID', cell: (v) => v || '—' },
+  { key: 'enrolledAt', label: 'Registered On', cell: stamp },
   { key: 'status', label: 'Status',
-    cell: (v) => v.charAt(0).toUpperCase() + v.slice(1), pill: statusPill }
+    cell: (v) => v === 'approved' ? 'Enabled' : v.charAt(0).toUpperCase() + v.slice(1),
+    pill: statusPill }
 ]
 
-/* Velto ends every device row with an Action column whose only control is
-   View. The row is already clickable, so this is not new capability — it is
-   the affordance that says so, which a bare row does not. */
-const rowAction = { label: 'View' }
+/** The list as it stands on screen, as a file. */
+function exportCsv () {
+  const cell = (row, col) => {
+    const v = col.cell ? col.cell(row[col.key], row) : row[col.key]
+    return '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  }
+  const body = [
+    columns.map(c => '"' + c.label + '"').join(','),
+    ...rows.value.map(row => columns.map(col => cell(row, col)).join(','))
+  ].join(String.fromCharCode(10))
+  const url = URL.createObjectURL(new Blob([body], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = 'devices.csv'
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
 const GRAPH_DIMS = [
   { key: 'osFamily', label: 'Operating system family' },
@@ -280,7 +304,6 @@ async function bindThisBrowser () {
 onMounted(async () => {
   await refreshCounts()
   // land on the queue only when something is actually waiting
-  if (!counts.value.pending) filter.value = 'approved'
   load()
 })
 </script>
@@ -288,66 +311,9 @@ onMounted(async () => {
 <template>
   <div class="container-fluid i-page">
     <PageHeader
-      collection="devices"
       title="Devices"
-      subtitle="Every endpoint that has tried to connect. Approving a device binds it to its user."
-    >
-    </PageHeader>
-
-    <div class="i-strip">
-      <div class="i-ftabs">
-        <button
-          v-for="c in chips" :key="c.key"
-          class="i-chip" :class="{ 'is-on': filter === c.key }"
-          :aria-pressed="filter === c.key" @click="filter = c.key"
-        >
-          {{ c.label }}
-          <span v-if="c.n" class="i-n">{{ c.n.toLocaleString() }}</span>
-        </button>
-      </div>
-      <div class="i-right">
-        <label class="i-search">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <input v-model="search" type="search" placeholder="Search device, user, IP or MAC">
-        </label>
-        <div class="i-tools">
-        <button class="i-btn"><i class="fa-solid fa-download" aria-hidden="true" /> Export</button>
-        <button class="i-btn" @click="openAdd">
-          <i class="fa-solid fa-plus" aria-hidden="true" /> Add device
-        </button>
-        <ListTools
-          v-model:graph="graphOn"
-          kind="devices" resource="devices"
-          :rows="rows" :dimensions="GRAPH_DIMS" :total="total"
-          @apply="onBulkApplied"
-        />
-        <!-- Devices are enrolled rather than added, so this is the screen's
-             create action and it takes the anchor the Add button holds
-             everywhere else. -->
-        <button class="i-btn i-primary" :disabled="binding" @click="bindThisBrowser">
-          <i class="fa-solid fa-fingerprint" aria-hidden="true" />
-          {{ binding ? 'Enrolling…' : 'Enrol this browser' }}
-        </button>
-        </div>
-      </div>
-    </div>
-
-    <section v-if="counts.pending" class="i-band">
-      <div>
-        <div class="i-bt">
-          <span class="i-fdot" aria-hidden="true" />
-          {{ counts.pending.toLocaleString() }} devices are waiting for approval
-        </div>
-        <p class="i-bs">
-          Until one is approved its user cannot connect from it. The current console
-          shows this number nowhere.
-        </p>
-      </div>
-      <div class="i-bandacts">
-        <button class="i-btn i-primary" @click="filter = 'pending'">Review the queue</button>
-      </div>
-    </section>
-
+      subtitle="List of devices registered by the users with device identification details"
+    />
 
     <GraphView
       v-if="graphOn"
@@ -359,47 +325,30 @@ onMounted(async () => {
     <DataTable
       v-else
       ref="table" :columns="columns" :rows="rows" :total="total" :loading="loading"
-      v-model:page="page" v-model:perPage="perPage" :sort="sort" :dir="dir"
-      :row-action="rowAction"
+      v-model:page="page" v-model:perPage="perPage" v-model:search="search" :sort="sort" :dir="dir"
       @sort="onSort" @selection="selectedIds = $event"
-      @row-action="openDetail" @row-click="openDetail"
+      @row-click="openDetail"
     >
-      <template #bulk>
-        <button class="i-btn i-sm i-primary" @click="approveSelected">Approve</button>
-        <button class="i-btn i-sm ms-1" @click="bulkStatus('suspended')">Suspend</button>
-        <button class="i-btn i-sm ms-1" @click="bulkStatus('approved')">Activate</button>
-        <button class="i-btn i-sm i-danger ms-1" @click="rejectSelected">Reject</button>
-      </template>
-      <template #empty>
-        <!-- Four situations. "Nothing pending" is the healthy end of a
-             queue and should read as good news; an empty tenant is day one
-             and should offer the way in. Neither is "no results found". -->
-        <EmptyState
-          v-if="search"
-          icon="fa-magnifying-glass"
-          title="Nothing matches that search"
-          body="Try a shorter term, or clear the search."
+      <!-- Veno's own toolbar. Approve / Reject are this console's additions
+           and sit after production's five, in the same operation buttons, so
+           the row still reads as one toolbar. -->
+      <template #tools>
+        <button class="operation-btn btn btn-primary" :disabled="addOpen || detailOpen" @click="openAdd"> Add </button>
+        <ListTools
+          kind="devices" resource="devices"
+          :rows="rows" :total="total"
+          @apply="onBulkApplied"
         />
-        <EmptyState
-          v-else-if="filter === 'pending'"
-          icon="fa-circle-check"
-          title="Nothing waiting for approval"
-          body="Every enrolled device has been dealt with. That is the healthy state."
+        <button class="operation-btn btn btn-success" @click="exportCsv"> CSV </button>
+        <button class="operation-btn btn btn-danger" @click="rejectSelected"> Delete </button>
+        <ListTools
+          v-model:graph="graphOn"
+          :rows="rows" :dimensions="GRAPH_DIMS" :total="total"
         />
-        <EmptyState
-          v-else-if="filter !== 'all'"
-          icon="fa-filter"
-          :title="`No ${filter} devices`"
-          body="Switch back to All to see every device."
-        />
-        <EmptyState
-          v-else
-          icon="fa-laptop"
-          title="No devices yet"
-          body="A device appears here the first time somebody signs in to the agent on it."
-          actionLabel="Add one by hand"
-          @action="openAdd"
-        />
+        <button class="operation-btn btn btn-primary" @click="approveSelected"> Approve </button>
+        <button class="operation-btn btn btn-primary" :disabled="binding" @click="bindThisBrowser">
+          {{ binding ? 'Enrolling…' : 'Enrol this browser' }}
+        </button>
       </template>
     </DataTable>
 
@@ -449,12 +398,10 @@ onMounted(async () => {
         </div>
       </div>
       <template #footer>
-        <button class="i-btn i-quiet" @click="addOpen = false">Cancel</button>
-        <div class="i-right">
-          <button class="i-btn i-primary" :disabled="addSaving" @click="saveDevice">
-            {{ addSaving ? 'Saving…' : 'Add device' }}
-          </button>
-        </div>
+        <button class="btn btn-success nav-btn"  :disabled="addSaving" @click="saveDevice"><span>{{ addSaving ? 'Saving…' : 'Add device' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="addOpen = false">Cancel</button>
+
+
       </template>
     </Sheet>
 
@@ -504,25 +451,25 @@ onMounted(async () => {
       <!-- The verb depends on the state, as velto's does: a device that is
            not active can be activated, one that is active can be suspended. -->
       <template #footer>
-        <button class="i-btn i-quiet" @click="detailOpen = false">Close</button>
-        <div class="i-right">
-          <button
+        <button
             v-if="detail?.status === 'pending'"
             class="i-btn i-danger" @click="setStatus('reject')"
           >Reject</button>
-          <button
+          <button class="btn btn-success nav-btn"
             v-if="detail?.status === 'pending'"
-            class="i-btn i-primary" @click="setStatus('approve')"
-          >Approve</button>
-          <button
+             @click="setStatus('approve')"
+          ><span>Approve</span></button>
+          <button class="btn btn-primary nav-btn"
             v-else-if="detail?.status === 'approved'"
-            class="i-btn" @click="setDeviceStatus(detail, 'suspended')"
+             @click="setDeviceStatus(detail, 'suspended')"
           >Suspend</button>
-          <button
+          <button class="btn btn-success nav-btn"
             v-else
-            class="i-btn i-primary" @click="setDeviceStatus(detail, 'approved')"
-          >Activate</button>
-        </div>
+             @click="setDeviceStatus(detail, 'approved')"
+          ><span>Activate</span></button>
+        <button class="btn btn-danger nav-btn"  @click="detailOpen = false">Close</button>
+
+
       </template>
     </Sheet>
   </div>

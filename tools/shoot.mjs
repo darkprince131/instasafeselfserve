@@ -108,6 +108,23 @@ const LIST_READY = `(() => {
 })()`
 const BARE_READY = 'document.readyState === "complete" && !!document.querySelector("#app > *")'
 
+/**
+ * A signed-in sandbox, before anything is shot.
+ *
+ * The console is behind a gate now, so every route redirects to sign-up
+ * until there is a session. The harness writes one the way the app does —
+ * `lib/trial.js`'s own localStorage key — rather than driving three screens
+ * before each screenshot.
+ */
+await send('Page.navigate', { url: BASE + '/signin' }, sessionId)
+await sleep(900)
+await evaluate(`localStorage.setItem('i365.trial', JSON.stringify({
+  signedIn: true, name: 'Veno', adminEmail: 'admin@example.com',
+  createdAt: new Date().toISOString(),
+  expiresAt: new Date(Date.now() + 14 * 864e5).toISOString(),
+  lastLogin: '08-09-2026 11:53:47', done: {}
+})); true`).catch(() => {})
+
 for (const spec of specs) {
   const [route, name, ready_expr] = spec.split('::')
   const expr = !ready_expr ? LIST_READY : ready_expr === '-' ? BARE_READY : ready_expr

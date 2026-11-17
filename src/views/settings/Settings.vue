@@ -440,12 +440,10 @@ onMounted(load)
         </p>
       </div>
       <template #footer>
-        <button class="i-btn i-quiet" @click="pwOpen = false">Cancel</button>
-        <div class="i-right">
-          <button class="i-btn i-primary" :disabled="pwSaving" @click="savePassword">
-            {{ pwSaving ? 'Saving…' : 'Save' }}
-          </button>
-        </div>
+        <button class="btn btn-success nav-btn"  :disabled="pwSaving" @click="savePassword"><span>{{ pwSaving ? 'Saving…' : 'Save' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="pwOpen = false">Cancel</button>
+
+
       </template>
     </Sheet>
   </div>

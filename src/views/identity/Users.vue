@@ -211,7 +211,7 @@ async function loadDetails (row) {
  * Nothing is lost: all three are still on the record, one row-click away.
  */
 const columns = [
-  { key: 'name', label: 'Name',
+  { key: 'name', label: 'Name', indicator: true,
     cell: (_, r) => (r.firstName + ' ' + r.lastName).trim() },
   { key: 'username', label: 'Username' },
   { key: 'authProfile', label: 'Auth Profile', cell: (v) => String(v || '').toLowerCase() },
@@ -704,16 +704,14 @@ onMounted(load)
       </div>
 
       <template #footer>
-        <button class="i-btn i-quiet" @click="sheetOpen = false">Cancel</button>
+        <button class="btn btn-success nav-btn"  :disabled="saving" @click="save"><span>{{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Save user') }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Cancel</button>
         <button
           v-if="editingId && form.status !== 'suspended'"
           class="i-btn i-danger" @click="suspendOne"
         >Suspend</button>
-        <div class="i-right">
-          <button class="i-btn i-primary" :disabled="saving" @click="save">
-            {{ saving ? 'Saving…' : (editingId ? 'Save changes' : 'Save user') }}
-          </button>
-        </div>
+
+
       </template>
     </Sheet>
 
@@ -816,12 +814,10 @@ onMounted(load)
       </template>
 
       <template #footer>
-        <button class="i-btn i-quiet" @click="detailsOpen = false">Close</button>
-        <div class="i-right">
-          <RouterLink class="i-btn" :to="'/access-explorer'">
-            Explain an access decision
-          </RouterLink>
-        </div>
+        <RouterLink class="btn btn-primary nav-btn"  :to="'/access-explorer'">Explain an access decision</RouterLink>
+        <button class="btn btn-danger nav-btn"  @click="detailsOpen = false">Close</button>
+
+
       </template>
     </Sheet>
 
@@ -849,12 +845,10 @@ onMounted(load)
         </p>
       </div>
       <template #footer>
-        <button class="i-btn i-quiet" @click="pwOpen = false">Cancel</button>
-        <div class="i-right">
-          <button class="i-btn i-primary" :disabled="pwSaving" @click="savePassword">
-            {{ pwSaving ? 'Saving…' : 'Change password' }}
-          </button>
-        </div>
+        <button class="btn btn-success nav-btn"  :disabled="pwSaving" @click="savePassword"><span>{{ pwSaving ? 'Saving…' : 'Change password' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="pwOpen = false">Cancel</button>
+
+
       </template>
     </Sheet>
 

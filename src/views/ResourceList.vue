@@ -738,7 +738,7 @@ onMounted(load)
           <button
             v-if="cfg.primaryAction && editable"
             class="operation-btn btn btn-primary" :disabled="sheetOpen" @click="openAdd"
-          > {{ cfg.primaryAction }} </button>
+          > Add </button>
 
           <ListTools
             v-if="cfg.bulkAdd"
@@ -1024,10 +1024,10 @@ onMounted(load)
         columns.
       </p>
       <template #footer>
-        <button class="i-btn i-quiet" @click="aclsOpen = false">Close</button>
-        <div class="i-right">
-          <RouterLink class="i-btn" to="/access-explorer">Explain an access decision</RouterLink>
-        </div>
+        <RouterLink class="btn btn-primary nav-btn"  to="/access-explorer">Explain an access decision</RouterLink>
+        <button class="btn btn-danger nav-btn"  @click="aclsOpen = false">Close</button>
+
+
       </template>
     </Sheet>
 
@@ -1089,12 +1089,10 @@ onMounted(load)
         </p>
       </div>
       <template #footer>
-        <button class="i-btn i-quiet" @click="secretOpen = false">Cancel</button>
-        <div class="i-right">
-          <button class="i-btn i-primary" :disabled="secretSaving" @click="saveSecret">
-            {{ secretSaving ? 'Saving…' : 'Save' }}
-          </button>
-        </div>
+        <button class="btn btn-success nav-btn"  :disabled="secretSaving" @click="saveSecret"><span>{{ secretSaving ? 'Saving…' : 'Save' }}</span></button>
+        <button class="btn btn-danger nav-btn"  @click="secretOpen = false">Cancel</button>
+
+
       </template>
     </Sheet>
 

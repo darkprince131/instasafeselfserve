@@ -20,19 +20,51 @@ const page = ref(1); const perPage = ref(10)
 const sort = ref('at'); const dir = ref('desc')
 const search = ref(''); const filter = ref('all')
 
+/**
+ * Veno prints three columns here and nothing else: an absolute timestamp,
+ * the username, and the sentence. Event type, source IP, location and
+ * severity were the redesign's; the type is folded into the sentence, which
+ * is where veno has it too.
+ */
+const stamp = (v) => {
+  if (!v) return ''
+  const d = new Date(v)
+  const n = (x) => String(x).padStart(2, '0')
+  return d.getFullYear() + '-' + n(d.getMonth() + 1) + '-' + n(d.getDate()) + ' ' +
+         n(d.getHours()) + ':' + n(d.getMinutes()) + ':' + n(d.getSeconds())
+}
+
 const columns = [
-  { key: 'at', label: 'When', cell: fmtAgo, dim: true },
-  { key: 'type', label: 'Event', mono: true },
-  { key: 'message', label: 'Description' },
-  { key: 'actor', label: 'Actor' },
-  { key: 'ip', label: 'Source IP', mono: true },
-  { key: 'city', label: 'Location' },
-  { key: 'severity', label: 'Severity',
-    pill: (v) => v === 'warning' ? 'att' : v === 'error' ? 'bad' : null }
+  { key: 'at', label: 'Time', cell: stamp },
+  { key: 'actor', label: 'Username' },
+  { key: 'message', label: 'Log' }
 ]
 
+/** Veno's own period control. The window is applied on the server there; the
+ *  mock adapter has every row in one store, so it is applied on load. */
+const period = ref('today')
+
+function reload () { page.value = 1; load() }
+
+/** The list as it stands on screen, as a file. */
+function exportCsv () {
+  const cell = (row, col) => {
+    const v = col.cell ? col.cell(row[col.key], row) : row[col.key]
+    return '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  }
+  const body = [
+    columns.map(c => '"' + c.label + '"').join(','),
+    ...rows.value.map(row => columns.map(col => cell(row, col)).join(','))
+  ].join(String.fromCharCode(10))
+  const url = URL.createObjectURL(new Blob([body], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = 'event-logs.csv'
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 const chips = [
-  { key: 'all', label: 'Everything' },
+  { key: 'all', label: 'Select events...' },
   { key: 'warning', label: 'Warnings only' },
   { key: 'auth', label: 'Authentication' },
   { key: 'device', label: 'Devices' },
@@ -65,45 +97,45 @@ onMounted(load)
 <template>
   <div class="container-fluid i-page">
     <PageHeader
-      collection="eventLog"
-      title="Event logs"
-      subtitle="Everything that happened, including everything you have done in this demo."
-    >
-    </PageHeader>
+      title="Event Logs"
+      subtitle="List of users with their event log report"
+    />
 
-    <div class="i-strip">
-      <div class="i-ftabs">
-        <button
-          v-for="c in chips" :key="c.key"
-          class="i-chip" :class="{ 'is-on': filter === c.key }"
-          :aria-pressed="filter === c.key" @click="filter = c.key"
-        >{{ c.label }}</button>
+    <!-- Veno's own period control: a bare form-select in its own row, with
+         the event picker under it. Neither is a filter chip, which is what
+         this screen had. -->
+    <div class="row">
+      <div class="col-auto mb-2">
+        <select class="form-select" v-model="period" @change="reload">
+          <option value="hour">Hour</option>
+          <option value="today">Today</option>
+          <option value="last_24_hours">Last 24 Hours</option>
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+          <option value="date_range">Date Range</option>
+        </select>
       </div>
-      <div class="i-right">
-        <label class="i-search">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <input v-model="search" type="search" placeholder="Search event, actor or IP">
-        </label>
-        <div class="i-tools">
-        <RouterLink class="i-btn" to="/profile/export-log">
-          <i class="fa-solid fa-shield-halved" aria-hidden="true" /> SIEM export
-        </RouterLink>
-        <button class="i-btn"><i class="fa-solid fa-download" aria-hidden="true" /> Export CSV</button>
-        </div>
+    </div>
+
+    <div class="row mt-1 mb-2">
+      <div class="col-12 col-md-8">
+        <select class="form-select" v-model="filter" @change="reload" aria-label="Select events">
+          <option v-for="c in chips" :key="c.key" :value="c.key">{{ c.label }}</option>
+        </select>
       </div>
     </div>
 
     <DataTable
       :columns="columns" :rows="rows" :total="total" :loading="loading"
-      v-model:page="page" v-model:perPage="perPage" :sort="sort" :dir="dir"
-      :selectable="false" @sort="onSort"
+      v-model:page="page" v-model:perPage="perPage" v-model:search="search"
+      :sort="sort" :dir="dir" :selectable="false" :boxed="false"
+      @sort="onSort"
     >
-      <template #empty>
-        <EmptyState
-          icon="fa-list"
-          :title="search ? 'Nothing matches that search' : 'No events in this view'"
-          body="Do something in the console — add a user, approve a device — and it appears here."
-        />
+      <template #tools>
+        <button class="operation-btn btn btn-success" @click="exportCsv"> CSV </button>
+        <span>
+          <RouterLink class="operation-btn btn btn-primary" to="/profile/export-log"> SIEM Export </RouterLink>
+        </span>
       </template>
     </DataTable>
   </div>

@@ -46,7 +46,14 @@ const props = defineProps({
   rowAction: { type: Object, default: null },
   /** Bound to the search box in the right-hand column. */
   search: { type: String, default: '' },
-  searchable: { type: Boolean, default: true }
+  searchable: { type: Boolean, default: true },
+  /**
+   * Most lists sit in `.container-separator`, which is what gives
+   * `.table-container` its border. The report screens do not — the event log
+   * puts `.table-responsive.table-container` straight into the page, with no
+   * border at all — so this is how a screen says which it is.
+   */
+  boxed: { type: Boolean, default: true }
 })
 
 const emit = defineEmits([
@@ -113,8 +120,9 @@ function badgeClass (col, row) {
 function cellClass (col) {
   return {
     'text-end': col.align === 'right',
-    'text-uppercase': col.upper,
-    'fw-semibold': col.bold
+    'text-center': col.align === 'center',
+    'text-capitalize': col.capitalize,
+    'text-uppercase': col.upper
   }
 }
 </script>
@@ -154,7 +162,7 @@ function cellClass (col) {
     </div>
   </div>
 
-  <div class="container-separator">
+  <div :class="boxed ? 'container-separator' : ''">
     <div class="row">
       <div class="col-12" :class="panelOpen ? 'col-md-6' : 'col-md-12'">
         <div class="table-responsive table-container">
@@ -169,7 +177,7 @@ function cellClass (col) {
                 </th>
                 <th
                   v-for="col in columns" :key="col.key"
-                  :class="{ 'text-end': col.align === 'right' }"
+                  :class="{ 'text-end': col.align === 'right', 'text-center': col.align === 'center' }"
                 >{{ col.label }}</th>
                 <th v-if="rowAction || $slots.actions">{{ $slots.actions ? 'Action' : '' }}</th>
               </tr>
@@ -194,12 +202,15 @@ function cellClass (col) {
                 </td>
 
                 <td
-                  v-for="(col, ci) in columns" :key="col.key"
-                  :class="[cellClass(col), ci === 0 && col.indicator !== false ? 'd-flex align-items-center' : '']"
+                  v-for="col in columns" :key="col.key"
+                  :class="[cellClass(col), col.indicator ? 'd-flex align-items-center' : '']"
                 >
-                  <!-- Production puts a live-session dot before the first
-                       column's value and links it to the live report. -->
-                  <template v-if="ci === 0 && col.indicator !== false">
+                  <!-- Two first-column idioms, both production's. /users puts
+                       a live-session dot before the name and links it to the
+                       live report; /devices makes the name a bold blue link
+                       to the record. Which one a screen uses is the screen's
+                       business, so neither is a default. -->
+                  <template v-if="col.indicator">
                     <RouterLink
                       to="/reports/live"
                       class="rounded-circle me-1 d-inline-block status-indicator"
@@ -208,9 +219,16 @@ function cellClass (col) {
                     /> {{ value(row, col) ?? '—' }}
                   </template>
 
+                  <template v-else-if="col.link">
+                    <a class="text-decoration-none fw-bold text-primary" role="button">{{ value(row, col) ?? '—' }}</a>
+                  </template>
+
+                  <!-- Velto prints its switches as Enabled / Disabled pills,
+                       red for off — the user-groups capture is three of them
+                       in a row. -->
                   <template v-else-if="col.bool">
-                    <span class="badge rounded-pill" :class="row[col.key] ? 'bg-success' : 'bg-secondary'">
-                      {{ row[col.key] ? 'Yes' : 'No' }}
+                    <span class="badge rounded-pill" :class="row[col.key] ? 'bg-success' : 'bg-danger'">
+                      {{ row[col.key] ? 'Enabled' : 'Disabled' }}
                     </span>
                   </template>
 

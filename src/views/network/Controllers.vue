@@ -529,12 +529,12 @@ onUnmounted(() => clearInterval(poll))
       </div>
 
       <template #footer>
+        <button class="btn btn-success nav-btn"  @click="openEdit"><span>Edit</span></button>
         <template v-if="mode === 'view'">
-          <button class="i-btn i-quiet" @click="sheetOpen = false">Close</button>
-          <div class="i-right">
-            <button class="i-btn i-primary" @click="openEdit">Edit</button>
-          </div>
-        </template>
+          <button class="btn btn-danger nav-btn"  @click="sheetOpen = false">Close</button>
+
+
+      </template>
         <template v-else>
           <button
             class="i-btn i-quiet"

@@ -11,6 +11,8 @@
  * So it is attached when a bare route is entered and detached when one is
  * left, which reproduces production's two-page split inside one SPA.
  */
+import { theme, applyTheme } from './theme.js'
+
 const ID = 'prod-pagescss'
 const HREF = '/prod/css/pagescss.css'
 
@@ -28,5 +30,22 @@ export function setPageCss (on) {
   } else if (!on && existing) {
     existing.remove()
   }
+
+  /**
+   * The theme class has to come off with it.
+   *
+   * style.css declares the palette twice — once on `:root` and again on
+   * `body.light-theme` — and pagescss redeclares it on `:root` only. A class
+   * on `body` beats a `:root` rule for everything inside body, so with
+   * `light-theme` still on, pagescss's `--text-color: #e0e0e0` lost to
+   * style.css's `#121212` and every label on the sign-in card rendered black
+   * on black. Production's signed-out pages carry no class at all, so
+   * neither do these.
+   */
   document.body.classList.toggle('signed-out', !!on)
+  if (on) {
+    document.body.classList.remove('light-theme', 'dark-theme')
+  } else {
+    applyTheme(theme.value)
+  }
 }
