@@ -646,6 +646,14 @@ function runTool (t) {
  * same columns, the same order, the same filter — because a file that does
  * not match what you were looking at is the one bug an export can have.
  */
+function askBulk () {
+  if (!selectedIds.value.length) {
+    toast(`Select at least one ${cfg.value?.singular || 'record'} first.`)
+    return
+  }
+  confirmOpen.value = true
+}
+
 function exportCsv () {
   const cols = cfg.value?.columns || []
   const cell = (row, col) => {
@@ -669,6 +677,18 @@ function onRowAction (row) {
 }
 
 /** Names the objects in the confirm, which production never does. */
+/**
+ * Production titles the side card "Add Gateway", "Add User" — the verb and
+ * the thing, both capitalised, with no article. `singular` is written
+ * lower-case in resources.js because it is used mid-sentence too, so it is
+ * capitalised here rather than in fifty config entries.
+ */
+const panelTitle = computed(() => {
+  const noun = (cfg.value?.singular || 'record')
+    .split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  return (reading.value ? 'View ' : editingId.value ? 'Edit ' : 'Add ') + noun
+})
+
 const confirmBody = computed(() => {
   const names = rows.value
     .filter(x => selectedIds.value.includes(x.id))
@@ -748,11 +768,10 @@ onMounted(load)
             :rows="rows" :total="total"
             @apply="onBulkApplied"
           />
-        <button
-            class="operation-btn btn btn-danger"
-            :disabled="!selectedIds.length" @click="confirmOpen = true"
-          > {{ bulk.label }} </button>
         <button class="operation-btn btn btn-success" @click="exportCsv"> CSV </button>
+        <!-- Velto's Delete is always armed and complains if nothing is
+             ticked, rather than greying out and saying nothing. -->
+        <button class="operation-btn btn btn-danger" @click="askBulk"> {{ bulk.label }} </button>
         <ListTools
             v-model:graph="graphOn"
             :rows="rows" :dimensions="graphDims" :total="total"
@@ -778,7 +797,7 @@ onMounted(load)
     <Sheet
       v-if="editable"
       v-model:open="sheetOpen"
-      :title="(reading ? 'View ' : editingId ? 'Edit ' : 'Add ') + (cfg.singular || 'record')"
+      :title="panelTitle"
       :subtitle="reading ? (cfg.readSubtitle || '') : (cfg.formSubtitle || '')"
     >
       <!-- Read mode: the record as it stands, and the actions you take on it.

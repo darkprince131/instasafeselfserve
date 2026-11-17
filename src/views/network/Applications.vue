@@ -331,7 +331,7 @@ onMounted(async () => {
     <!-- add: the form changes shape by type, as production does -->
     <Sheet
       v-model:open="sheetOpen"
-      :title="editingId ? 'Edit application' : 'Add application'"
+      :title="editingId ? 'Edit Application' : 'Add Application'"
       subtitle="Access rules point at this once it exists."
     >
       <div class="i-formsec">

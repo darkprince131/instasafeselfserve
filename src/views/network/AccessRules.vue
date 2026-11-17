@@ -290,7 +290,7 @@ onMounted(async () => {
 
     <Sheet
       v-model:open="sheetOpen"
-      :title="editingId ? 'Edit access rule' : 'Add access rule'"
+      :title="editingId ? 'Edit Access Rule' : 'Add Access Rule'"
       :subtitle="editingId ? 'Changing order or action takes effect on the next evaluation.' : 'New rules are added at the end so they cannot change what existing rules do.'"
       width="620px"
     >

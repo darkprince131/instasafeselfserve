@@ -462,7 +462,7 @@ onMounted(load)
 
     <Sheet
       v-model:open="sheetOpen"
-      :title="editingId ? 'Edit user' : 'Add user'"
+      :title="editingId ? 'Edit User' : 'Add User'"
       :subtitle="editingId ? 'Changes apply at their next sign-in.' : 'They receive an activation mail once saved.'"
     >
       <!-- Velto's own three tabs. A person, what is enforced on them, and

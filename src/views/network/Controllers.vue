@@ -434,7 +434,7 @@ onUnmounted(() => clearInterval(poll))
          only becomes a form when you ask it to -->
     <Sheet
       v-model:open="sheetOpen"
-      :title="mode === 'add' ? 'Add controller' : (mode === 'edit' ? `Edit ${current?.name}` : current?.name || '')"
+      :title="mode === 'add' ? 'Add Controller' : (mode === 'edit' ? `Edit ${current?.name}` : current?.name || '')"
       :subtitle="mode === 'view' ? 'Controller detail' : ''"
       width="620px"
     >

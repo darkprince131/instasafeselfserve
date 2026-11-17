@@ -223,7 +223,7 @@ onMounted(load)
 
     <Sheet
       v-model:open="sheetOpen"
-      :title="editingId ? 'Edit device check' : 'Add device check'"
+      :title="editingId ? 'Edit Device Check' : 'Add Device Check'"
       subtitle="A check applies only to the operating system it names."
     >
       <div class="i-formsec">

@@ -330,7 +330,7 @@ onMounted(() => { loadLicence(); load() })
 
     <Sheet
       v-model:open="sheetOpen"
-      :title="mode === 'add' ? 'Add gateway' : (mode === 'edit' ? `Edit ${current?.name}` : current?.name || '')"
+      :title="mode === 'add' ? 'Add Gateway' : (mode === 'edit' ? `Edit ${current?.name}` : current?.name || '')"
       :subtitle="mode === 'view' ? 'Gateway detail' : ''"
       width="620px"
     >

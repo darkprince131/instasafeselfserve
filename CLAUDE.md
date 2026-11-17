@@ -333,19 +333,47 @@ Needed before first deploy: a Netlify site, and a Neon database URL in the site'
 
 ---
 
-## 8 · Open, needs a decision
+## 8 · Decided
 
-1. **Trial boundary.** Time-limited, seat-limited, or neither? Changes what the console
-   says at the edge, and whether sign-up needs any gate at all.
-2. **Shared sandbox or one per visitor.** Per visitor is what the forked code does, via a
-   cookie + a Neon row. Cheap, but it is a row per curious visitor.
-3. **Lead capture.** Does sign-up ask for a work email and does it go anywhere? Nothing in
-   the code sends email today; the Demo Inbox is the destination.
-4. **Tenant logo.** Company settings has a customer logo upload. In the trial, does the
-   header's `.company-logo` become theirs? Most ZTNA vendors keep vendor branding in the
-   admin console and allow it only on the end-user portal.
-5. **The redesign's additions.** The fork carries sort, a column chooser and an access
-   explorer that production does not have. Keep them (they are "added features for
-   self-serve") or drop them (they are a visible difference)? Default: keep the access
-   explorer and the flows, drop sort and the column chooser, because those two sit *inside*
-   the list template where a difference is most obvious.
+All five were taken on their stated defaults. Each is recorded where it
+lives in the code, not only here.
+
+1. **Trial boundary — time-limited, 14 days.** `src/lib/trial.js`. A seat
+   limit would collide with the 1,821 seeded users, and the seeded scale is
+   the thing worth showing. Three days out the console shows a stock
+   `.alert.alert-warning`; at zero, a modal with no close that says the
+   sandbox is still there and nothing in it was deleted
+   (`components/trial/TrialExpiry.vue`).
+2. **One sandbox per visitor**, which is what the forked code already does —
+   IndexedDB locally, a cookie and a Neon row when hosted.
+3. **Lead capture — a work e-mail, kept locally.** Sign-up refuses the common
+   free-mail domains and sends a six-digit code to the Demo Inbox. Nothing is
+   sent anywhere, and the screen says so, including printing the code.
+4. **Tenant logo stays InstaSafe's.** The tenant *name* is what changes, in
+   `.company-name` beside the logo, where veno prints "Veno". A customer's own
+   mark belongs on the end-user portal, which is where most ZTNA vendors
+   allow it.
+5. **Sort and the column chooser are gone; the access explorer and the flows
+   stay.** The first two sat inside the list template, which is where a
+   difference is most visible. The explorer and the agent are listed after
+   production's 19 sidebar entries and marked `trial: true` in
+   `src/router/nav.js`.
+
+### Differences a visitor could still see
+
+Honest list, so nobody has to rediscover them:
+
+- **A "Trial" link in the header**, left of FAQ, wearing production's own
+  `.help` class. It opens the offcanvas holding the Demo Inbox, the guided
+  flows, the empty-state switches and the sandbox reset. The alternative was
+  adding rows to the avatar dropdown, which is one of the captured states and
+  has to keep its three.
+- **Two extra sidebar entries**, Access Explorer and Desktop Agent, after
+  production's 19.
+- **`/signup` has no capture to match**, because production has no sign-up at
+  all. It is built from the sign-in page it sits beside.
+- **Field hints on some forms.** Production ships none. They are rendered in
+  production's own muted style and only where a field is genuinely ambiguous.
+- **Confirm dialogs name what they are about to delete.** The heading, the
+  glyph and the button label are production's exactly; the sentence between
+  them is not.
