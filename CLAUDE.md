@@ -386,3 +386,20 @@ Honest list, so nobody has to rediscover them:
 - **Confirm dialogs name what they are about to delete.** The heading, the
   glyph and the button label are production's exactly; the sentence between
   them is not.
+
+### 9 · The trial layer is kept, and visible
+
+Decided 2026-11-18, and it revises the rule above. The dummy states, the
+prefilled forms, the spotlight and Pip stay. They sit *on top of* production's
+chrome rather than replacing it — shell, lists, forms and palette underneath
+stay verbatim — so the failure mode changes: it is no longer "a visitor spots
+a difference", it is **"a visitor cannot tell what is real"**.
+
+Which makes one rule absolute: every simulated step says so, in the step.
+`SCOPE.md`'s R/S/D column is the source of truth, and a flow claiming more
+than its rating is the only thing here that would actually lose a deal.
+
+The journey this serves — who signs up, the six triggers they arrive with, and
+which flow answers each — is `TRIAL-JOURNEY.md`. The seven existing flows are
+re-labelled against those triggers; three more are needed, and
+`windows-logon` has no route today.
