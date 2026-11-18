@@ -127,7 +127,11 @@ const routes = [
     path: '/portal/signin',
     name: 'portal-signin',
     component: () => import('../views/portal/PortalSignIn.vue'),
-    meta: { bare: true, portalBare: true }
+    /* Production's sign-in page, not the portal's canvas: velto has one login
+       page for both personas, so this takes pagescss.css and the signup
+       background exactly as /signin does. `portalBare` would wrap it in
+       `.p-app`, which is the redesign's canvas and fought the glass card. */
+    meta: { bare: true, pageCss: true, title: 'Sign in' }
   },
   /* the old path still resolves, so a bookmark lands somewhere sensible */
   { path: '/mfa-profile', redirect: '/portal' }

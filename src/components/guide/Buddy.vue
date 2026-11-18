@@ -394,6 +394,16 @@ const style = computed(() => at.value
   --pb-accent: var(--p-violet, #656195);
 }
 
+/* Production's primary is not one colour. In the console a .btn-primary is
+   #656195, which is what both blocks above already resolve to; on the
+   signed-out pages pagescss repaints it orange, and Pip sitting beside an
+   orange Signin button wearing the console's purple was the one thing on
+   that screen that did not belong. `body.signed-out` is set by
+   lib/page-css.js for exactly the routes pagescss is attached to, so this
+   follows it rather than guessing per route. */
+body.signed-out .pip-console,
+body.signed-out .pip-portal { --pb-accent: #f97316; }
+
 .pip-wrap {
   position: fixed; z-index: 95;
   width: 88px; height: 88px;

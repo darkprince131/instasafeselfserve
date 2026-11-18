@@ -40,6 +40,8 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const busy = ref(false)
+/* Production's password field carries an eye toggle; this is its state. */
+const showPassword = ref(false)
 const user = ref(null)
 const suggestion = ref('')
 const needsSetup = ref(false)
@@ -233,179 +235,197 @@ onUnmounted(() => clearInterval(ticker))
 </script>
 
 <template>
-  <div class="p-gate p-act">
-    <!-- ------------------------------------------------------------ who -->
-    <template v-if="step === 'who'">
-      <h1 class="p-gh">Sign in</h1>
-      <p class="p-gs">Use the account your administrator created for you.</p>
+  <!-- Production's own sign-in chrome. Velto has one login page and routes by
+       what the account is allowed to do, so the employee signing in to enrol a
+       phone sees what the administrator sees - the same glass card on the same
+       background, from the same pagescss.css. The portal's own canvas was the
+       redesign's, and it made the enrolment hand-off read as a different
+       product one click after leaving the console. -->
+  <div class="background-container" />
+  <div class="main-container">
+    <div class="glass-card">
+      <img src="/prod/ext/companies/instasafe.png" alt="Instasafe" class="logo img-fluid d-block mx-auto">
 
-      <form @submit.prevent="submitWho">
-        <div class="p-field">
-          <label for="pu">Email address</label>
-          <input
-            id="pu" v-model="email" type="text" autocomplete="username"
-            placeholder="you@company.com" autofocus
-          >
-          <p v-if="error" class="p-err">{{ error }}</p>
-        </div>
-        <button class="p-btn p-wide-btn" :disabled="busy">Continue</button>
-      </form>
+      <section id="CompanyMemberAccountController">
+        <!-- 1 - who -->
+        <template v-if="step === 'who'">
+          <h4>Signin</h4>
+          <form @submit.prevent="submitWho">
+            <div class="mb-3 username-input-container mb-4">
+              <label for="pu" class="form-label visually-hidden">Email address</label>
+              <input
+                id="pu" v-model="email" type="text" class="form-control" name="username"
+                placeholder="Email address or username" autocomplete="username" autofocus
+              >
+            </div>
+            <p v-if="error" class="selection-text text-center">{{ error }}</p>
+            <span>
+              <button type="submit" class="btn btn-primary" :disabled="busy">
+                {{ busy ? 'Checking...' : 'Next' }}
+              </button>
+            </span>
+          </form>
 
-      <!-- An address this tenant has never heard of. Velto answers this with
-           "no such user", which tells anybody with a list of addresses which
-           ones are real; this demo has one tenant and no such list, and
-           walking on to a password box that can only fail is worse. -->
-      <p v-if="unknown" class="p-err mt-3">
-        <code class="i-tech">{{ unknown }}</code> is not an account in this
-        tenant.
-        <button v-if="suggestion" class="p-linkish" @click="useSuggested">
-          Use {{ suggestion }} instead
-        </button>
-      </p>
+          <!-- An address this tenant has never heard of. Velto answers "no
+               such user", which tells anybody with a list of addresses which
+               ones are real; this demo has one tenant and no such list, and
+               walking on to a password box that can only fail is worse. -->
+          <p v-if="unknown" class="selection-text text-center mt-3 mb-0">
+            <strong>{{ unknown }}</strong> is not an account in this tenant.
+            <a v-if="suggestion" class="resend-otp-link" role="button" @click="useSuggested">
+              Use {{ suggestion }} instead
+            </a>
+          </p>
 
-      <p v-if="suggestion" class="p-gnote">
-        In this demo, <code class="i-tech">{{ suggestion }}</code> is a real
-        account. Any password gets in — there is no way for you to know this
-        one's, so checking it could only ever lock you out. Any account created
-        in the administrator console works here too.
-      </p>
+          <p v-if="suggestion" class="selection-text text-center mt-3 mb-0">
+            {{ suggestion }} is a real account here, and any password gets in -
+            a seeded account's password is not something you could know. Any
+            account created in the console works too.
+          </p>
 
-      <p class="p-gnote">
-        <strong>Administrators sign in here too.</strong>
-        It is one product: what you see depends on what your account is
-        allowed to do. An administrator account lands on the console that runs
-        the tenant, everybody else lands on their own access.
-        <RouterLink to="/signin">Administrator sign-in</RouterLink> —
-        <code class="i-tech">admin</code> / <code class="i-tech">demo</code>.
-      </p>
-    </template>
+          <p class="text-center mt-3 mb-0 terms">
+            Administrators sign in here too - it is one product, and what you
+            see depends on what your account may do. <br>
+            <RouterLink to="/signin" class="text-decoration-none">Administrator sign-in</RouterLink>
+          </p>
+        </template>
 
-    <!-- ------------------------------------------------------- password -->
-    <template v-else-if="step === 'password'">
-      <button class="p-back" @click="back">
-        <i class="fa-solid fa-arrow-left" aria-hidden="true" /> Back
-      </button>
+        <!-- 2 - password -->
+        <template v-else-if="step === 'password'">
+          <div class="header-section">
+            <button type="button" class="back-button" aria-label="Back" @click="back">
+              <i class="fas fa-arrow-left" />
+            </button>
+            <h4>{{ user && user.firstName ? 'Hello, ' + user.firstName : 'Signin' }}</h4>
+            <span class="w-24" />
+          </div>
 
-      <span class="p-heroav p-actav">
-        {{ (user?.firstName || user?.username || '?').slice(0, 1).toUpperCase() }}
-      </span>
-      <h1 class="p-gh">{{ user?.firstName ? `Hello, ${user.firstName}` : 'Enter your password' }}</h1>
-      <p class="p-gs i-tech">{{ user?.email || user?.username }}</p>
+          <form @submit.prevent="submitPassword">
+            <div class="mb-3 username-input-container disabled-container">
+              <label for="pu_locked" class="form-label visually-hidden">Account</label>
+              <input id="pu_locked" type="text" class="form-control" :value="user?.email || user?.username" disabled>
+              <span class="edit-btn" role="button" aria-label="Change account" @click="back">
+                <i class="fas fa-pen" />
+              </span>
+            </div>
 
-      <p v-if="needsSetup" class="p-gs">
-        Nobody has set a password on this account yet. Type anything to carry
-        on, or set one properly — that is the screen a new employee gets on
-        their first day.
-      </p>
+            <p v-if="needsSetup" class="selection-text text-center">
+              Nobody has set a password on this account yet. Carry on, or set
+              one properly - that is the screen a new employee gets.
+            </p>
 
-      <form @submit.prevent="submitPassword">
-        <div class="p-field">
-          <label for="pp">Password</label>
-          <input id="pp" v-model="password" type="password" autocomplete="current-password">
-          <p v-if="error" class="p-err">{{ error }}</p>
-        </div>
-        <button class="p-btn p-wide-btn" :disabled="busy">
-          {{ busy ? 'Checking…' : 'Sign in' }}
-        </button>
-      </form>
+            <div class="mb-4 password-input-container">
+              <label for="pp" class="form-label visually-hidden">Password</label>
+              <input
+                id="pp" v-model="password" class="form-control"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="Password" autocomplete="current-password"
+              >
+              <span
+                class="password-toggle" role="button"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                @click="showPassword = !showPassword"
+              >
+                <i class="fas" :class="showPassword ? 'fa-eye-slash' : 'fa-eye'" />
+              </span>
+            </div>
 
-      <button class="p-ghost-btn" @click="goActivate">
-        Set a password instead
-      </button>
+            <p v-if="error" class="selection-text text-center">{{ error }}</p>
+            <span>
+              <button type="submit" class="btn btn-primary" :disabled="busy">
+                {{ busy ? 'Checking...' : 'Signin' }}
+              </button>
+            </span>
+          </form>
 
-      <p class="p-gnote">
-        Any password gets in. There is no way for you to know a seeded
-        account's password, so checking it could only ever lock you out. The
-        second factor after this is verified for real, and setting a password
-        really does hash it.
-      </p>
-    </template>
+          <p class="resend-otp-text text-center d-block mt-3 mb-0">
+            <a class="resend-otp-link" role="button" @click="goActivate">Set a password instead</a>
+          </p>
+          <p class="selection-text text-center mt-3 mb-0">
+            Any password signs you in. The second factor after this is verified
+            for real, and setting a password really does hash it.
+          </p>
+        </template>
 
-    <!-- ------------------------------------------- the second factor -->
-    <template v-else>
-      <button class="p-back" @click="back">
-        <i class="fa-solid fa-arrow-left" aria-hidden="true" />
-        {{ step === 'method' ? 'Other methods' : 'Back' }}
-      </button>
+        <!-- 3 - choose a second factor. Production has no such screen, so it
+             is stock Bootstrap: a list-group inside the same card. The two
+             panes this had cannot fit a card this narrow, so what a method is
+             moves underneath the one being considered. -->
+        <template v-else-if="step === 'choose'">
+          <div class="header-section">
+            <button type="button" class="back-button" aria-label="Back" @click="back">
+              <i class="fas fa-arrow-left" />
+            </button>
+            <h4>Verify</h4>
+            <span class="w-24" />
+          </div>
 
-      <h1 class="p-gh">Two-factor authentication</h1>
-      <p class="p-gs">
-        {{ step === 'method'
-          ? chosen?.sub
-          : 'Your password is one half. Choose how you want to prove the other.' }}
-      </p>
+          <p class="selection-text text-center">
+            Your password is one half. Choose how to prove the other.
+          </p>
 
-      <!-- Two panes: the choice on the left, what it means on the right.
-           Velto gives six tiles and no explanation, so people pick the one
-           they recognise — which is how everybody ends up on SMS. -->
-      <div class="p-2up">
-        <ul class="p-mlist">
-          <li v-for="m in METHODS" :key="m.key">
+          <div class="list-group mb-3">
             <button
-              class="p-mrow" :class="{ 'is-on': method === m.key }"
+              v-for="m in METHODS" :key="m.key"
+              type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3"
               @mouseenter="preview = m.key" @mouseleave="preview = ''"
               @focus="preview = m.key" @blur="preview = ''"
               @click="pick(m)"
             >
-              <span class="p-micon"><i class="fa-solid" :class="m.icon" aria-hidden="true" /></span>
-              <span class="p-mbody">
-                <strong>
+              <i class="fa-solid fa-fw" :class="m.icon" aria-hidden="true" />
+              <span class="flex-grow-1 text-start">
+                <span class="d-block fw-semibold">
                   {{ m.label }}
-                  <span v-if="m.real" class="p-tag is-ok">verified for real</span>
-                </strong>
-                <small>{{ m.sub }}</small>
+                  <span v-if="m.real" class="badge rounded-pill bg-success ms-1">verified for real</span>
+                </span>
+                <small class="text-secondary">{{ m.sub }}</small>
               </span>
-              <i class="fa-solid fa-chevron-right p-mchev" aria-hidden="true" />
+              <i class="fas fa-chevron-right text-secondary" aria-hidden="true" />
             </button>
-          </li>
-        </ul>
+          </div>
 
-        <aside class="p-side" :class="{ 'is-live': step === 'method' }">
-          <!-- Before a choice: the drawing explains the mechanism. After
-               one: the simulator runs, and the drawing sits above it. -->
-          <MfaArt :method="step === 'method' ? method : preview" />
+          <p class="selection-text text-center mb-0">
+            {{ shown
+              ? shown.good
+              : 'A password can be guessed, reused or stolen without you knowing. A second factor is something you physically have, so the password alone is not enough.' }}
+          </p>
+        </template>
 
-          <template v-if="step === 'method'">
-            <MfaSimulator
-              :key="method" :method="method" :user="user"
-              @verified="enter(user)" @other="back"
-            />
-            <p class="p-sidehint">
-              <i class="fa-solid fa-circle-info" aria-hidden="true" />
-              <span>{{ chosen?.hint }}</span>
-            </p>
-          </template>
+        <!-- 4 - the method itself -->
+        <template v-else>
+          <div class="header-section">
+            <button type="button" class="back-button" aria-label="Other methods" @click="back">
+              <i class="fas fa-arrow-left" />
+            </button>
+            <h4>{{ chosen?.label || 'Verify' }}</h4>
+            <span class="w-24" />
+          </div>
 
-          <template v-else>
-            <h2 class="p-sideh">{{ shown ? shown.label : 'Why a second factor' }}</h2>
-            <p class="p-sidep">
-              {{ shown
-                ? shown.good
-                : 'A password can be guessed, reused or stolen without you knowing. A second factor is something you physically have, so knowing the password is not enough.' }}
-            </p>
-            <p class="p-sidehint">
-              <i class="fa-solid fa-hand-pointer" aria-hidden="true" />
-              <span>
-                {{ shown
-                  ? 'Choose it on the left to try it. Nothing here signs you in to anything real.'
-                  : 'Point at any method to see how it works. Choose one to try it.' }}
-              </span>
-            </p>
-          </template>
-        </aside>
-      </div>
+          <MfaArt :method="method" />
 
-      <p v-if="demo.mfaSimulator && step === 'method' && method === 'totp'" class="p-simwarn">
-        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
-        <span>
-          <strong>Teaching mode.</strong>
-          The code is shown so you can try this without a phone. Turn “Accept
-          any code” off in the demo-states widget and the authenticator is
-          verified against your real enrolled secret instead.
-        </span>
-      </p>
-    </template>
+          <MfaSimulator
+            :key="method" :method="method" :user="user"
+            @verified="enter(user)" @other="back"
+          />
 
+          <p class="selection-text text-center mt-3 mb-0">{{ chosen?.hint }}</p>
+
+          <div
+            v-if="demo.mfaSimulator && method === 'totp'"
+            class="alert alert-warning d-flex align-items-start gap-2 mt-3 mb-0"
+            role="alert"
+          >
+            <i class="fas fa-triangle-exclamation mt-1" aria-hidden="true" />
+            <span>
+              <strong>Teaching mode.</strong>
+              The code is shown so you can try this without a phone. Turn
+              "Accept any code" off in the demo-states widget and the
+              authenticator is verified against your real enrolled secret.
+            </span>
+          </div>
+        </template>
+      </section>
+    </div>
   </div>
 
   <!-- The sign-in is outside the portal shell, so Pip is mounted here too. -->
