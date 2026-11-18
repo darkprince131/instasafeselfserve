@@ -243,7 +243,7 @@ onUnmounted(() => clearInterval(ticker))
        product one click after leaving the console. -->
   <div class="background-container" />
   <div class="main-container">
-    <div class="glass-card">
+    <div class="glass-card" :class="{ 'card-wide': step === 'choose' }">
       <img src="/prod/ext/companies/instasafe.png" alt="Instasafe" class="logo img-fluid d-block mx-auto">
 
       <section id="CompanyMemberAccountController">
@@ -347,47 +347,56 @@ onUnmounted(() => clearInterval(ticker))
           </p>
         </template>
 
-        <!-- 3 - choose a second factor. Production has no such screen, so it
-             is stock Bootstrap: a list-group inside the same card. The two
-             panes this had cannot fit a card this narrow, so what a method is
-             moves underneath the one being considered. -->
+        <!-- 3 - choose a second factor. Production lays this out as a
+             three-across grid of tiles, icon over label, under a two-line
+             heading and "Please Select One Method" - not a list. What it does
+             not do is say what any method is, which is why everybody picks
+             SMS. The tiles are production's; the line under them is ours, and
+             it names whether the method is really verified. -->
         <template v-else-if="step === 'choose'">
           <div class="header-section">
             <button type="button" class="back-button" aria-label="Back" @click="back">
-              <i class="fas fa-arrow-left" />
+              <i class="fas fa-reply" />
             </button>
-            <h4>Verify</h4>
+            <h4>Two Factor<br>Authentication</h4>
             <span class="w-24" />
           </div>
 
-          <p class="selection-text text-center">
-            Your password is one half. Choose how to prove the other.
-          </p>
+          <p class="selection-text text-center mb-0">Please Select One Method</p>
 
-          <div class="list-group mb-3">
+          <div class="method-grid">
             <button
               v-for="m in METHODS" :key="m.key"
-              type="button" class="list-group-item list-group-item-action d-flex align-items-center gap-3"
+              type="button" class="method-tile"
+              :class="{ 'is-on': preview === m.key }"
               @mouseenter="preview = m.key" @mouseleave="preview = ''"
               @focus="preview = m.key" @blur="preview = ''"
               @click="pick(m)"
             >
-              <i class="fa-solid fa-fw" :class="m.icon" aria-hidden="true" />
-              <span class="flex-grow-1 text-start">
-                <span class="d-block fw-semibold">
-                  {{ m.label }}
-                  <span v-if="m.real" class="badge rounded-pill bg-success ms-1">verified for real</span>
-                </span>
-                <small class="text-secondary">{{ m.sub }}</small>
-              </span>
-              <i class="fas fa-chevron-right text-secondary" aria-hidden="true" />
+              <i class="fa-solid" :class="m.icon" aria-hidden="true" />
+              <span>{{ m.label }}</span>
             </button>
           </div>
 
+          <!-- Velto gives six tiles and no explanation. This is the whole
+               difference: point at one and it says what it is, and whether
+               what you are about to try is genuinely verified or standing in
+               for something a browser cannot do. -->
           <p class="selection-text text-center mb-0">
-            {{ shown
-              ? shown.good
-              : 'A password can be guessed, reused or stolen without you knowing. A second factor is something you physically have, so the password alone is not enough.' }}
+            <template v-if="shown">
+              <span v-if="shown.real" class="badge rounded-pill bg-success mb-2 d-inline-block">
+                verified for real
+              </span>
+              <span v-else class="badge rounded-pill bg-secondary mb-2 d-inline-block">
+                stands in for the real thing
+              </span>
+              <br>
+              <strong>{{ shown.label }}</strong> - {{ shown.good }}
+            </template>
+            <template v-else>
+              Point at a method to see what it is. Two of the six are genuinely
+              verified; the rest cannot be, in a browser, and say so.
+            </template>
           </p>
         </template>
 
@@ -431,3 +440,55 @@ onUnmounted(() => clearInterval(ticker))
   <!-- The sign-in is outside the portal shell, so Pip is mounted here too. -->
   <Buddy scope="portal" />
 </template>
+
+<style scoped>
+/* Production's own tokens, so this inherits pagescss's palette rather than
+   introducing one. `--glass-border-color` and `--text-color` are what the
+   card and its text already use on this page. */
+.card-wide { max-width: 30rem; }
+
+.method-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.method-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 7rem;
+  padding: 1rem .5rem;
+  border: 1px solid var(--glass-border-color);
+  border-radius: .5rem;
+  background-color: rgb(255 255 255 / 3%);
+  color: var(--text-color);
+  font-size: .9rem;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease;
+}
+
+.method-tile i {
+  font-size: 1.6rem;
+  /* The one colour on this screen, and it is the primary the page already
+     paints its Signin button with. */
+  color: #f97316;
+}
+
+.method-tile:hover,
+.method-tile:focus-visible,
+.method-tile.is-on {
+  border-color: #f97316;
+  background-color: rgb(249 115 22 / 8%);
+  outline: none;
+}
+
+@media (max-width: 480px) {
+  .method-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
