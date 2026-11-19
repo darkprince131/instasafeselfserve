@@ -57,56 +57,66 @@ async function get (p) {
 </script>
 
 <template>
-  <div class="p-wide">
-    <header class="p-ph">
-      <h1>Get the InstaSafe agent</h1>
-      <p>
-        The agent is what connects this machine to your company's
-        applications. Install it once; it starts with the machine after that.
-      </p>
-    </header>
+  <div class="container-fluid" id="MemberDownloads" data-type="user">
+    <div class="container-heading mb-3">
+      <h2>Get the InstaSafe agent</h2>
+    </div>
+    <p class="text-secondary">
+      The agent is what connects this machine to your company's applications.
+      Install it once; it starts with the machine after that.
+    </p>
 
     <!-- The one you almost certainly want. -->
-    <section v-if="mine" class="p-card p-dlmine">
-      <i class="p-dlbig" :class="mine.icon" aria-hidden="true" />
-      <div>
-        <p class="p-dlfor">Looks like you are on</p>
-        <h2>{{ mine.label }}</h2>
-        <p class="p-sub">{{ mine.note }}</p>
-        <p v-if="mine.file" class="i-tech p-dlfile">{{ mine.file }}</p>
-      </div>
-      <!-- A real file is an <a download>; a logged intention is a button.
-           They do different things and should not look like the same control
-           with a different label. -->
-      <a v-if="mine.href" class="p-btn" :href="mine.href" download @click="get(mine)">
-        <i class="fa-solid fa-download" aria-hidden="true" /> Download
-      </a>
-      <button v-else class="p-btn" @click="get(mine)">
-        <i class="fa-solid" :class="mine.store ? 'fa-arrow-up-right-from-square' : 'fa-download'" aria-hidden="true" />
-        {{ mine.store || 'Download' }}
-      </button>
-    </section>
-
-    <h2 class="p-sech">Other platforms</h2>
-    <div class="p-dlgrid">
-      <article v-for="p in others" :key="p.key" class="p-card p-dltile">
-        <i class="p-dlic" :class="p.icon" aria-hidden="true" />
-        <div class="p-dlbody">
-          <h3>{{ p.label }}</h3>
-          <p class="p-sub">{{ p.note }}</p>
-          <p v-if="p.file" class="i-tech p-dlfile">{{ p.file }}</p>
+    <div v-if="mine" class="card shadow mb-4">
+      <div class="card-body d-flex flex-wrap align-items-center gap-3">
+        <i class="fa-2x member-icon" :class="mine.icon" aria-hidden="true" />
+        <div class="flex-grow-1">
+          <p class="text-secondary small mb-0">Looks like you are on</p>
+          <h5 class="mb-1">{{ mine.label }}</h5>
+          <p class="text-secondary mb-0">{{ mine.note }}</p>
+          <p v-if="mine.file" class="text-secondary small mb-0">{{ mine.file }}</p>
         </div>
-        <a v-if="p.href" class="p-btn p-ghost" :href="p.href" download @click="get(p)">
-          <i class="fa-solid fa-download" aria-hidden="true" /> Download
-        </a>
-        <button v-else class="p-btn p-ghost" @click="get(p)">
-          <i class="fa-solid" :class="p.store ? 'fa-arrow-up-right-from-square' : 'fa-download'" aria-hidden="true" />
-          {{ p.store || 'Download' }}
+        <!-- A real file is an <a download>; a logged intention is a button.
+             They do different things and should not look like one control
+             with a different label. -->
+        <a
+          v-if="mine.href" class="operation-btn btn btn-primary"
+          :href="mine.href" download @click="get(mine)"
+        >Download</a>
+        <button v-else class="operation-btn btn btn-primary" @click="get(mine)">
+          {{ mine.store || 'Download' }}
         </button>
-      </article>
+      </div>
     </div>
 
-    <p v-if="said" class="p-note mt-3">
+    <div class="container-heading mb-3"><h2>Other platforms</h2></div>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
+      <div v-for="p in others" :key="p.key" class="col">
+        <div class="card shadow h-100">
+          <div class="card-body d-flex flex-column">
+            <i class="member-icon mb-2" :class="p.icon" aria-hidden="true" />
+            <h6 class="mb-1">{{ p.label }}</h6>
+            <p class="text-secondary small flex-grow-1 mb-2">
+              {{ p.note }}
+              <span v-if="p.file" class="d-block">{{ p.file }}</span>
+            </p>
+            <a
+              v-if="p.href" class="operation-btn btn btn-primary align-self-start"
+              :href="p.href" download @click="get(p)"
+            >Download</a>
+            <button
+              v-else class="operation-btn btn btn-primary align-self-start"
+              @click="get(p)"
+            >{{ p.store || 'Download' }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCOPE.md rates the agent build S for every platform but Windows, and
+         this is where that shows. Saying it beats handing somebody a file
+         that does not exist. -->
+    <div v-if="said" class="alert alert-info mt-4" role="alert">
       <template v-if="said === 'Windows'">
         That is a real executable — the agent prototype, about four hundred
         kilobytes, unsigned. Windows will warn you about an unknown publisher,
@@ -114,21 +124,23 @@ async function get (p) {
         get the installer, the tray icon and the connection states.
       </template>
       <template v-else>
-        In production this serves the signed agent for {{ said }}, with iOS
-        and Android going to their stores. Only the Windows build exists so
-        far, so this request is written to the event log instead of handing
-        you a broken file.
+        In production this serves the signed agent for {{ said }}, with iOS and
+        Android going to their stores. Only the Windows build exists so far, so
+        this request is written to the event log instead of handing you a
+        broken file.
       </template>
-    </p>
+    </div>
 
-    <section class="p-card mt-4">
-      <h2 class="p-cardh"><i class="fa-solid fa-circle-question" aria-hidden="true" /> After you install it</h2>
-      <ol class="p-steps">
-        <li>Start the agent. On Windows and macOS it starts on its own after the first run.</li>
-        <li>Sign in with the same username you used here.</li>
-        <li>Your device registers itself and appears on your dashboard.</li>
-        <li>An administrator approves it — until then, network applications stay closed.</li>
-      </ol>
-    </section>
+    <div class="card shadow mt-4">
+      <div class="card-body">
+        <h5 class="card-title">After you install it</h5>
+        <ol class="mb-0 ps-3">
+          <li>Start the agent. On Windows and macOS it starts on its own after the first run.</li>
+          <li>Sign in with the same username you used here.</li>
+          <li>Your device registers itself and appears on your dashboard.</li>
+          <li>An administrator approves it — until then, network applications stay closed.</li>
+        </ol>
+      </div>
+    </div>
   </div>
 </template>

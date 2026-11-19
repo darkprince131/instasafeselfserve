@@ -96,53 +96,70 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="p-wide">
-    <header class="p-ph">
-      <h1>Applications</h1>
-      <p>Everything your administrator has given you. Click one to open it.</p>
-    </header>
+  <div class="container-fluid" id="MemberApplications" data-type="user">
+    <div class="container-heading mb-3">
+      <h2>Applications</h2>
+    </div>
 
-    <div class="p-filters">
-      <label class="p-search">
-        <i class="fa-solid fa-magnifying-glass" aria-hidden="true" />
-        <input v-model="q" type="search" placeholder="Search applications…" aria-label="Search applications">
-      </label>
-      <div class="p-chips" role="group" aria-label="Filter by type">
-        <button class="p-chip" :class="{ 'is-on': !type }" @click="type = ''">All</button>
+    <!-- Production's own list toolbar: the search sits right, where every
+         console list puts it. The type filter is a stock button group rather
+         than the chips this had. -->
+    <div class="row mb-2">
+      <div class="col-12 col-md-6 d-flex flex-wrap justify-content-start align-items-center">
+        <button
+          class="operation-btn btn" :class="!type ? 'btn-primary' : 'btn-outline-secondary'"
+          @click="type = ''"
+        >All</button>
         <button
           v-for="t in types" :key="t"
-          class="p-chip" :class="{ 'is-on': type === t }" @click="type = t"
+          class="operation-btn btn" :class="type === t ? 'btn-primary' : 'btn-outline-secondary'"
+          @click="type = t"
         >{{ (KINDS[t]?.label || t).toUpperCase() }}</button>
+      </div>
+      <div class="col-12 col-md-6 d-flex justify-content-end align-items-center">
+        <input
+          v-model="q" type="search" class="form-control"
+          placeholder="Type keyword and enter to search" aria-label="Search applications"
+        >
+        <span class="fs-6 text-nowrap ms-2">{{ shown.length }} of {{ rows.length }}</span>
       </div>
     </div>
 
-    <p v-if="loading" class="p-sub">Loading…</p>
+    <p v-if="loading" class="text-secondary">Loading…</p>
 
-    <div v-else-if="shown.length" class="p-appgrid">
-      <button
-        v-for="a in shown" :key="a.id" class="p-card p-appcard"
-        :class="{ 'is-blocked': !kind(a).browser && !agentUp }"
-        @click="open(a)"
-      >
-        <span class="p-appbadge">{{ kind(a).label }}</span>
-        <span class="p-appicon"><i class="fa-solid fa-cube" aria-hidden="true" /></span>
-        <strong class="p-appname">{{ a.name }}</strong>
-        <span v-if="a.host" class="i-tech p-apphost">{{ a.host }}</span>
-        <span class="p-apphow">
-          <template v-if="!kind(a).browser && !agentUp">
-            Needs the agent, which is not running
-          </template>
-          <template v-else>{{ kind(a).how }}</template>
-        </span>
-      </button>
+    <div v-else-if="shown.length" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
+      <div v-for="a in shown" :key="a.id" class="col">
+        <button class="card shadow h-100 w-100 text-start border-0" @click="open(a)">
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="badge rounded-pill bg-secondary">{{ kind(a).label }}</span>
+              <!-- An application that cannot open right now says so on the
+                   card rather than failing when it is clicked. -->
+              <span
+                v-if="!kind(a).browser && !agentUp"
+                class="badge rounded-pill bg-warning text-dark"
+              >agent off</span>
+            </div>
+            <strong class="d-block">{{ a.name }}</strong>
+            <span v-if="a.host" class="text-secondary small d-block">{{ a.host }}</span>
+            <span class="text-secondary small mt-2">
+              <template v-if="!kind(a).browser && !agentUp">
+                Needs the agent, which is not running
+              </template>
+              <template v-else>{{ kind(a).how }}</template>
+            </span>
+          </div>
+        </button>
+      </div>
     </div>
 
-    <p v-else class="p-sub">
-      <template v-if="q || type">Nothing matches that filter.</template>
-      <template v-else>
+    <div v-else class="text-center m-2">
+      <i class="fas fa-frown p-1" />
+      <span v-if="q || type">No results found</span>
+      <span v-else>
         Nothing has been assigned to you yet. Your administrator decides what
         appears here.
-      </template>
-    </p>
+      </span>
+    </div>
   </div>
 </template>

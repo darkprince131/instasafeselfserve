@@ -1101,3 +1101,190 @@ a.p-appt:hover{ border-color:var(--p-violet); }
   font-size:13px; color:var(--p-dim);
 }
 .p-ghost-btn:hover{ border-color:var(--p-violet); color:var(--p-ink); }
+
+/* ===== production mapping =================================================
+ *
+ * The member pages still carry `p-*` markup: Profile and MFA are forms and
+ * modals rather than lists, and rewriting ~670 lines of template to swap a
+ * class name risks the behaviour for no visual gain the visitor can see.
+ * What a visitor sees is this file, so this is where they are brought onto
+ * production's values.
+ *
+ * Every number below is lifted from `public/prod/css/style.css`, not chosen:
+ * the heading is #493e54 at 1.25rem/700, a primary button is #656195 on
+ * .operation-btn's 25px/2px geometry, a table container is 1px #dee2e6 at
+ * .375rem, and a dark card is #121212 with a 12% white border. Colour
+ * variables come from style.css's own `:root`, so dark mode follows the
+ * console's rather than needing a second set here.
+ *
+ * It is scoped to `.content-wrapper`, so the sign-in and activation canvases
+ * - which are a dark glass card on a background image, and correct already -
+ * are untouched.
+ * ======================================================================= */
+
+.content-wrapper .p-wide,
+.content-wrapper .p-narrow {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  /* `.container-fluid`'s own gutter, since these elements carry that class
+     too and a `padding:0` here would take production's margin off the page. */
+  padding: var(--bs-gutter-x, 1.5rem) calc(var(--bs-gutter-x, 1.5rem) * .5);
+}
+
+/* `.p-narrow > *` capped every child at 760px, which is the centred-column
+   layout this page used before it moved into the console's frame. The frame
+   decides the width now. */
+.content-wrapper .p-narrow > * { max-width: none; }
+
+/* Page heading, as `.container-heading > h2`. */
+.content-wrapper .p-ph { margin: 0 0 1rem; }
+.content-wrapper .p-ph h1,
+.content-wrapper .p-sheet h2 {
+  margin: 0 0 .5rem;
+  color: #493e54;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: normal;
+}
+body.dark-theme .content-wrapper .p-ph h1,
+body.dark-theme .content-wrapper .p-sheet h2 { color: #fff; }
+
+.content-wrapper .p-ph p,
+.content-wrapper .p-sub,
+.content-wrapper .p-hint,
+.content-wrapper .p-note { color: var(--text-secondary-color); }
+
+.content-wrapper .p-sech {
+  margin: 1.5rem 0 .5rem;
+  color: #493e54;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+body.dark-theme .content-wrapper .p-sech { color: #fff; }
+
+/* Card, as Bootstrap's with production's dark override. */
+.content-wrapper .p-card {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: .375rem;
+  background-color: var(--bg-color);
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+  margin-bottom: 1rem;
+}
+body.dark-theme .content-wrapper .p-card {
+  background-color: #121212;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+
+.content-wrapper .p-cardh {
+  color: #493e54;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 .75rem;
+}
+body.dark-theme .content-wrapper .p-cardh { color: #fff; }
+
+/* Buttons, on `.operation-btn`'s geometry and colours. */
+.content-wrapper .p-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  height: 25px;
+  min-width: 75px;
+  min-height: 0;
+  padding: 0 12px;
+  border: none;
+  border-radius: 2px;
+  background-color: #656195;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 400;
+  margin: .25rem 5px .25rem 0;
+  text-decoration: none;
+  transition: background-color .3s ease;
+}
+.content-wrapper .p-btn:hover:not(:disabled) { background-color: #656195; transform: scale(1.05); }
+.content-wrapper .p-btn:active:not(:disabled) { background-color: #5b547d; transform: scale(1.05); }
+.content-wrapper .p-btn.p-ghost {
+  margin-top: .25rem;
+  background-color: transparent;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+.content-wrapper .p-btn.p-ghost:hover:not(:disabled) { background-color: transparent; }
+
+/* A full-bleed button belonged to the centred column. Production's buttons
+   are 75px-minimum chips, so a primary action does not span a card. */
+.content-wrapper .p-btn.p-wide-btn { width: auto; }
+
+/* Fields, as `.form-control`. */
+.content-wrapper .p-field { margin-bottom: 1rem; }
+.content-wrapper .p-field label {
+  margin-bottom: .5rem;
+  color: var(--label-color);
+  font-size: 1rem;
+}
+.content-wrapper .p-field input,
+.content-wrapper .p-field select,
+.content-wrapper .p-field textarea,
+.content-wrapper .p-code {
+  display: block;
+  width: 100%;
+  padding: .375rem .75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: .375rem;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.content-wrapper .p-field input:focus,
+.content-wrapper .p-code:focus {
+  border-color: #656195;
+  box-shadow: 0 0 0 .25rem rgba(101, 97, 149, .25);
+  outline: 0;
+}
+
+/* Status pills, as `.badge.rounded-pill`. Production badges every state. */
+.content-wrapper .p-tag {
+  display: inline-block;
+  padding: .35em .65em;
+  border: none;
+  border-radius: 50rem;
+  background-color: #6c757d;
+  color: #fff;
+  font-size: .75em;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: baseline;
+}
+.content-wrapper .p-tag.is-ok { background-color: #1db82f; color: #fff; }
+.content-wrapper .p-tag.is-att,
+.content-wrapper .p-tag.is-pending { background-color: #ffc107; color: #000; }
+.content-wrapper .p-tag.is-bad,
+.content-wrapper .p-tag.is-rejected { background-color: #ef5137; color: #fff; }
+
+/* Modal, as Bootstrap's. */
+.content-wrapper .p-modal {
+  background-color: rgba(0, 0, 0, .5);
+}
+.content-wrapper .p-sheet {
+  border: 1px solid var(--border-color);
+  border-radius: .5rem;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+}
+body.dark-theme .content-wrapper .p-sheet {
+  background-color: #121212;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+
+/* The key/value lists on Profile and the dashboard read as a borderless
+   table, which is what the console uses for the same job. */
+.content-wrapper .p-kv dt { color: var(--text-secondary-color); font-weight: 400; }
+.content-wrapper .p-kv dd { color: var(--text-color); }

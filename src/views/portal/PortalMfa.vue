@@ -190,7 +190,7 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <template>
-  <div class="p-narrow">
+  <div class="container-fluid p-narrow">
     <header class="p-ph">
       <h1>Multi-factor authentication</h1>
       <p>

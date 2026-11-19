@@ -111,7 +111,7 @@ async function savePassword () {
 </script>
 
 <template>
-  <div class="p-narrow">
+  <div class="container-fluid p-narrow">
     <header class="p-ph">
       <h1>Your profile</h1>
       <p>What your company knows about this account.</p>
