@@ -135,7 +135,8 @@ function measure () {
 
   /* Something is layered over the page. The target, if it is still there at
      all, is behind it. Pointing at it would be pointing through a scrim. */
-  if (sel !== '.i-sheet' && document.querySelector('.i-sheet, .i-modal, .i-scrim')) {
+  const SHEET = '.card.show, .modal.show'
+  if (sel !== SHEET && document.querySelector(SHEET + ', .modal-backdrop')) {
     rect.value = null
     return
   }

@@ -48,7 +48,7 @@ export const TOURS = [
     baseline: (api) => snapshot(api, ['users', 'applications', 'gateways', 'accessRules', 'groups']),
     steps: [
       {
-        to: '/users', target: '.i-tools',
+        to: '/users', target: '.operation-btn',
         title: 'Add a user',
         body: 'Press Add user and fill in a first name and an email. The username and email fill themselves in from the name.',
         done: 'User created',
@@ -61,7 +61,7 @@ export const TOURS = [
         recap: (ctx) => `${ctx.user?.firstName} ${ctx.user?.lastName || ''}`.trim()
       },
       {
-        to: '/gateways', target: '.i-tools',
+        to: '/gateways', target: '.operation-btn',
         title: 'Add a gateway',
         body: 'A gateway is where traffic enters. Applications sit behind one, so this has to exist before an application can be reached.',
         done: 'Gateway created',
@@ -74,7 +74,7 @@ export const TOURS = [
         recap: (ctx) => ctx.gateway?.name
       },
       {
-        to: '/applications', target: '.i-tools',
+        to: '/applications', target: '.operation-btn',
         title: 'Add an application, behind that gateway',
         body: 'Press Add application. Pick a type, give it a host, and choose the gateway you just made in the Gateway field. An application with no gateway is configured but unreachable.',
         done: 'Application created and assigned',
@@ -89,7 +89,7 @@ export const TOURS = [
         recap: (ctx) => `${ctx.app?.name} → ${ctx.app?.gateway}`
       },
       {
-        to: '/access-rules', target: '.i-tools',
+        to: '/access-rules', target: '.operation-btn',
         title: 'Write the access rule that joins them',
         body: 'Until a rule says so, nobody reaches anything — the default is deny. Add a rule with your user or their group as the source and the new application as the destination, and leave the action on Allow.',
         done: 'Access rule created',
@@ -138,7 +138,7 @@ export const TOURS = [
     baseline: (api) => snapshot(api, ['users']),
     steps: [
       {
-        to: '/users', target: '.i-table',
+        to: '/users', target: '.table-container',
         title: 'Find somebody not yet enrolled',
         body: 'The MFA column marks who has not done it. Click the row to open them — the whole row is the control, there is no pencil icon.',
         done: 'User open',
@@ -146,7 +146,7 @@ export const TOURS = [
         check: async () => !!document.querySelector('.i-sheet')
       },
       {
-        to: '/users', target: '.i-sheet',
+        to: '/users', target: '.card.show, .modal.show',
         title: 'Require it, and note what you cannot do',
         body: 'Multi-factor authentication shows whether they are enrolled and lets you require it or reset it. There is no "enrol" button, and that absence is correct: you do not have their phone.',
         done: 'MFA required',
@@ -205,7 +205,7 @@ export const TOURS = [
     baseline: (api) => snapshot(api, ['authProfiles', 'users']),
     steps: [
       {
-        to: '/profile/saml', target: '.i-tools',
+        to: '/profile/saml', target: '.operation-btn',
         title: 'Create an authentication profile',
         body: 'Add profile, then pick SAML 2.0 or OpenID Connect. Notice the form changes shape: SAML wants an entity ID and an ACS URL, OIDC wants an issuer and a client ID.',
         done: 'Profile created',
@@ -220,7 +220,7 @@ export const TOURS = [
         recap: (ctx) => `${ctx.profile?.name} (${ctx.profile?.type})`
       },
       {
-        to: '/profile/saml', target: '.i-table',
+        to: '/profile/saml', target: '.table-container',
         title: 'Test it against the bundled provider',
         body: 'Press Test on your new profile. It runs the genuine protocol round trip and shows every step — discovery, the redirect, the state check, the code, the exchange, the signature verification.',
         done: 'Round trip completed',
@@ -259,7 +259,7 @@ export const TOURS = [
     baseline: (api) => snapshot(api, ['devices', 'deviceChecks']),
     steps: [
       {
-        to: '/devices', target: '.i-tools',
+        to: '/devices', target: '.operation-btn',
         title: 'Enrol this browser as a device',
         body: 'Press "Enrol this browser". It takes a real fingerprint — platform, screen, hardware, timezone — hashes it, and files the result as a pending device.',
         done: 'Device enrolled',
@@ -281,7 +281,7 @@ export const TOURS = [
         check: async () => true
       },
       {
-        to: '/devices', target: '.i-table thead',
+        to: '/devices', target: '.table-container thead',
         title: 'Approve it',
         body: 'Select it and press Approve. Until a device is approved its user cannot connect from it.',
         done: 'Device approved',
@@ -317,7 +317,7 @@ export const TOURS = [
     baseline: (api) => snapshot(api, ['groups', 'accessRules', 'users']),
     steps: [
       {
-        to: '/usergroups', target: '.i-tools',
+        to: '/usergroups', target: '.operation-btn',
         title: 'Create a group',
         body: 'Give it a name and set its policy — two-factor, device binding, posture checks. Everything set here is inherited by every member.',
         done: 'Group created',
@@ -330,7 +330,7 @@ export const TOURS = [
         recap: (ctx) => ctx.group?.name
       },
       {
-        to: '/access-rules', target: '.i-tools',
+        to: '/access-rules', target: '.operation-btn',
         title: 'Write a rule against the group',
         body: 'Add a rule with Source type set to User group and your new group as the source. One rule now covers everyone who will ever be in it.',
         done: 'Group rule created',
@@ -367,7 +367,7 @@ export const TOURS = [
     baseline: (api) => snapshot(api, ['urlFilters']),
     steps: [
       {
-        to: '/url-filter', target: '.i-tools',
+        to: '/url-filter', target: '.operation-btn',
         title: 'Block something broadly',
         body: 'Add a rule with a pattern like *facebook.com* and the action Block. Give it priority 2.',
         done: 'Block rule created',
@@ -381,7 +381,7 @@ export const TOURS = [
         recap: (ctx) => `${ctx.block?.pattern} (block)`
       },
       {
-        to: '/url-filter', target: '.i-tools',
+        to: '/url-filter', target: '.operation-btn',
         title: 'Now carve out an exception above it',
         body: 'Add a second rule, action Allow, priority 1, with a narrower pattern — your own company page, say. Lower priority runs first, so the exception wins.',
         done: 'Exception created',
@@ -391,7 +391,7 @@ export const TOURS = [
         }
       },
       {
-        to: '/url-filter', target: '.i-search',
+        to: '/url-filter', target: 'input[type="search"]',
         title: 'Test both',
         body: 'Type a URL that matches only the broad rule, then one that matches the exception. The verdict names the rule that decided and marks any rule a higher one has shadowed.',
         done: 'Tested',
@@ -422,7 +422,7 @@ export const TOURS = [
         check: async () => true
       },
       {
-        to: '/profile/export-log', target: '.i-ftabs',
+        to: '/profile/export-log', target: null,
         title: 'Switch between the wire formats',
         body: 'RFC 5424 syslog, ArcSight CEF, QRadar LEEF, JSON lines. The payload re-renders from your rows each time. Paste any of it into your parser — it will parse.',
         done: 'Seen',
@@ -430,7 +430,7 @@ export const TOURS = [
         check: async () => true
       },
       {
-        to: '/profile/export-log', target: '.i-tools',
+        to: '/profile/export-log', target: '.operation-btn',
         title: 'Send a test batch',
         body: 'Set a collector host and press Send test batch. Nothing leaves the browser — the payload goes to the Demo Inbox so you can read exactly what would have crossed the boundary.',
         done: 'Batch sent',
