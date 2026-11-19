@@ -24,7 +24,7 @@ const STEPS = [
   {
     key: 'signin',
     title: 'You are signed in',
-    body: 'Your sandbox is seeded to the scale of a running tenant — 1,821 users, 2,140 devices, 794 logged events. Everything in it is yours to change.',
+    body: 'Your console is empty, the way a real tenant is on day one. The steps below are the order an administrator actually works in, and nothing here is a mock-up — the policy engine evaluates and the authenticator verifies for real.',
     to: null
   },
   {

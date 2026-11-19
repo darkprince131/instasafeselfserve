@@ -119,8 +119,8 @@ function onCode (e) {
         <template v-if="step === 'email'">
           <h4>Start a free trial</h4>
           <p class="selection-text text-center">
-            A full InstaSafe console of your own, seeded to the scale of a
-            running tenant, for {{ TRIAL_DAYS }} days.
+            A full InstaSafe console of your own, empty, for
+            {{ TRIAL_DAYS }} days. You set it up — that is the point.
           </p>
           <form @submit.prevent="sendCode">
             <div class="mb-3 username-input-container mb-4">
@@ -211,9 +211,10 @@ function onCode (e) {
             </span>
           </form>
           <p class="selection-text text-center mt-3 mb-0">
-            Your sandbox is seeded with 1,821 users, 2,140 devices and 794
-            logged events, so there is something to administer from the first
-            screen. Reset it at any time from the Trial panel.
+            Your console starts with nothing in it, the way a real tenant
+            does on day one, and the Quick Start Guide walks you through
+            filling it. If you would rather see it at production scale, the
+            Trial panel loads a running tenant in one click.
           </p>
         </template>
       </section>

@@ -280,8 +280,34 @@ export const api = {
     clear: () => adapter.call('inbox.clear')
   },
 
-  /** Dashboard rollups — GET /stats */
-  stats: () => adapter.call('stats'),
+  /**
+   * Dashboard rollups — GET /stats
+   *
+   * The adapter counts the whole store, which ignores the empty-state
+   * switches — so a day-one tenant showed "122/1,821 online users" above
+   * four charts that all said "No results found". The first screen
+   * contradicting every other one is worse than either answer alone.
+   *
+   * Emptied collections are recounted through the same `count` the lists
+   * use, so the two cannot disagree again.
+   */
+  stats: async () => {
+    const base = await adapter.call('stats')
+    if (!base || typeof base !== 'object') return base
+    const out = { ...base }
+    if (isEmptied('users')) {
+      out.users = await api.users.count()
+      /* Licences are "used of total". The total is what the tenant bought
+         and stays; the used count is people, so it follows them to zero. */
+      if (out.licences) out.licences = { ...out.licences, used: out.users }
+    }
+    if (isEmptied('gateways')) { out.gateways = await api.gateways.count(); out.gatewaysUp = 0 }
+    if (isEmptied('sessions')) out.sessionsLive = 0
+    if (isEmptied('devices')) out.devices = await api.devices.count()
+    if (isEmptied('applications')) out.applications = await api.applications.count()
+    if (isEmptied('accessRules')) out.accessRules = await api.accessRules.count()
+    return out
+  },
 
   /** Demo plumbing. A real backend has no equivalent and does not need one. */
   demo: {

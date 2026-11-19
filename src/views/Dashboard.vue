@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue'
 import api from '../api'
+import { isEmptied } from '../lib/console-state.js'
 import PageHeader from '../components/ui/PageHeader.vue'
 import PieChart from '../components/ui/PieChart.vue'
 import QuickStart from '../components/trial/QuickStart.vue'
@@ -45,8 +46,16 @@ const num = (n) => (n ?? 0).toLocaleString()
 onMounted(async () => {
   stats.value = await api.stats()
   sessions.value = (await api.sessions.list({ perPage: 0 })).data
-  try { anomalies.value = (await api.anomalies.list({ perPage: 0 })).data } catch { anomalies.value = [] }
-  try { blocked.value = (await api.blockedApps.list({ perPage: 0 })).data } catch { blocked.value = [] }
+  /* Anomalies and blocked services are activity, not objects, so neither has
+     an empty-state switch of its own. They belong to the same question the
+     event log answers - has anything happened here yet - so they follow it.
+     Without this a day-one tenant showed two populated charts beside two
+     empty ones and four zeroed counters. */
+  const quiet = isEmptied('eventLog')
+  if (quiet) { anomalies.value = []; blocked.value = [] } else {
+    try { anomalies.value = (await api.anomalies.list({ perPage: 0 })).data } catch { anomalies.value = [] }
+    try { blocked.value = (await api.blockedApps.list({ perPage: 0 })).data } catch { blocked.value = [] }
+  }
   loading.value = false
 })
 

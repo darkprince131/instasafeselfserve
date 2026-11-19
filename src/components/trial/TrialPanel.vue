@@ -149,10 +149,12 @@ function endTrial () {
           <!-- ---------------- Start ---------------- -->
           <template v-if="tab === 'start'">
             <p class="small">
-              This is a full copy of the InstaSafe console, seeded to the scale
-              of a running tenant. Everything in it is yours to change: the
+              This is a full copy of the InstaSafe console, and it starts
+              empty so that what you build is yours and not the seed's. The
               policy engine really evaluates, the authenticator really
-              verifies, and every action you take is written to the event log.
+              verifies, and every action you take is written to the event
+              log. Load a running tenant below if you want to see it at
+              production scale instead.
             </p>
             <div class="list-group mb-3">
               <RouterLink to="/dashboard" class="list-group-item list-group-item-action" @click="emit('update:open', false)">

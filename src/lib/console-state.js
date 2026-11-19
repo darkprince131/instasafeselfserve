@@ -52,15 +52,32 @@ export const COLLECTIONS = [
 
 const KEYS = COLLECTIONS.map(c => c.key)
 
-/** Everything seeded, which is what a reviewer should land on. */
-const DEFAULTS = Object.fromEntries(KEYS.map(k => [k, 'seeded']))
+/**
+ * Everything empty, which is what a visitor should land on.
+ *
+ * This was 'seeded', on the argument that a reviewer should see production
+ * scale immediately. For somebody *evaluating* the product that is backwards:
+ * a console already holding 1,821 users answers a question they did not ask
+ * and hides the one they did - what does this ask of me on day one. They
+ * cannot tell their own work apart from the seed, and the guided flows have
+ * nothing to demonstrate because everything already exists.
+ *
+ * So the trial opens empty and the visitor builds it. 'Running tenant' is one
+ * click away in the Trial panel for the density question, which is a question
+ * people ask second.
+ */
+const DEFAULTS = Object.fromEntries(KEYS.map(k => [k, 'empty']))
 
 function load () {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || '{}')
     /* Only keys we still know about: a saved state should not resurrect a
        switch that has since been removed. */
-    return Object.fromEntries(KEYS.map(k => [k, raw[k] === 'empty' ? 'empty' : 'seeded']))
+    /* An unsaved key falls back to DEFAULTS, not to 'seeded'. Hard-coding
+       the fallback here is what made changing DEFAULTS do nothing at all:
+       a fresh visitor has no saved state, so every key took the literal. */
+    return Object.fromEntries(KEYS.map(
+      k => [k, raw[k] === 'empty' || raw[k] === 'seeded' ? raw[k] : DEFAULTS[k]]))
   } catch { return { ...DEFAULTS } }
 }
 
@@ -104,7 +121,7 @@ export function currentPreset () {
 export function resetConsoleState () { Object.assign(consoleDemo, DEFAULTS) }
 
 /** True when any switch is away from its default — the widget shows a dot. */
-export const isModified = computed(() => KEYS.some(k => consoleDemo[k] !== 'seeded'))
+export const isModified = computed(() => KEYS.some(k => consoleDemo[k] !== DEFAULTS[k]))
 
 /** How many collections are currently emptied. */
 export const emptiedCount = computed(() => KEYS.filter(k => consoleDemo[k] === 'empty').length)
