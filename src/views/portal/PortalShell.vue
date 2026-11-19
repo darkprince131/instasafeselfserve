@@ -2,94 +2,68 @@
 import { RouterView, RouterLink, useRouter, useRoute } from 'vue-router'
 import { ref, computed, onMounted } from 'vue'
 import { portalUser, portalSignOut } from '../../lib/portal-session.js'
-import AccountMenu from '../../components/shell/AccountMenu.vue'
 import DemoStates from '../../components/portal/DemoStates.vue'
-import Mark from '../../components/ui/Mark.vue'
 import Buddy from '../../components/guide/Buddy.vue'
 import { demo } from '../../lib/demo-state.js'
+import { theme, toggleTheme } from '../../lib/theme.js'
+import { tenant } from '../../lib/trial.js'
 
 /**
  * The end-user side of the console.
  *
- * Not a second product — the same one, seen from a seat with fewer
+ * Not a second product - the same one, seen from a seat with fewer
  * privileges. An administrator runs the tenant; everybody else sees their own
- * access. Calling these "two products" in the copy was wrong and has been
- * taken out: it told a visitor they were being shown something separate when
- * they were being shown the other half of the same thing.
+ * access.
  *
- * Two earlier mistakes, both now corrected.
+ * Three corrections are recorded here, each one made after looking rather
+ * than reasoning.
  *
- * The first was the comment that used to sit here: it claimed velto's member
- * area is "one screen that asks a single question". It is five screens.
+ * 1. An earlier comment claimed velto's member area is "one screen that asks
+ *    a single question". It is five screens (VELTO-AUDIT.md §55).
+ * 2. It was then built as a top tab bar over a centred column, on the
+ *    argument that three destinations should not look like sixty-six. True
+ *    of the content, wrong about the frame: velto's member area has a left
+ *    sidebar and so does the admin console.
+ * 3. The frame it moved to was the *redesign's* - `i-app`, `i-rail`,
+ *    `i-topbar`. That was right about the shape and wrong about the skin, so
+ *    an employee sent here from the Quick Start Guide watched the product
+ *    change around them. This is production's shell, class for class, the
+ *    same one `App.vue` emits.
  *
- * The second was the layout. This was built as a top tab bar over a centred
- * 980px column, on the reasoning that a portal with three destinations is a
- * different product from a console with sixty-six and should not look like
- * one. That is true of the *content* and wrong about the *frame*: velto's
- * member area has a left sidebar, the admin console has a left sidebar, and
- * a person who uses both should not have to relearn where navigation lives.
- * A centred column also left two thirds of a desktop window empty.
+ * What production's own style.css proves about this area, without a capture:
+ * `.content-wrapper .container-fluid .container-welcome` is an orange `#f60`
+ * heading, and `.member-icon` and `.member-profile-img` are sized for it. So
+ * the member pages sit inside the same `.content-wrapper > .container-fluid`
+ * as every console screen.
  *
- * So the frame is the admin console's, class for class — `i-app`, `i-rail`,
- * `i-main`, `i-topbar` — and it inherits that chrome, including the dark-rail
- * and dark-theme toggles, for free. What stays different is what belongs on
- * the pages: no tables of 2,000 rows, no bulk actions, bigger type, plain
- * language.
+ * What is still inferred, until `/member/*` is captured: the sidebar labels
+ * are velto's three destinations in velto's order, and `data-type` is a
+ * guess - the 976 captured admin pages all carry `companyadmin`, and nothing
+ * on disk says what the member area carries.
  */
 
 const router = useRouter()
 const route = useRoute()
 const user = portalUser
-const navOpen = ref(false)
 
-/* Velto's three, in velto's order. */
+const sidebarOpen = ref(false)
+
+/* Velto's three, in velto's order. Profile and MFA are not here: §58 found
+   velto keeps them behind the avatar in both consoles, and they were in both
+   places at once for a while, which is worse than one place people look. */
 const NAV = [
-  { to: '/portal', label: 'Dashboard', icon: 'fa-gauge-high', exact: true },
-  { to: '/portal/downloads', label: 'Downloads', icon: 'fa-download' },
-  { to: '/portal/applications', label: 'Applications', icon: 'fa-grip' }
+  { to: '/portal', label: 'Dashboard', exact: true },
+  { to: '/portal/downloads', label: 'Downloads' },
+  { to: '/portal/applications', label: 'Applications' }
 ]
-
-/* Velto keeps these two behind the avatar rather than in the sidebar. They
-   are on the rail as well, because a security setting nobody finds is a
-   security setting nobody uses. */
-/**
- * Velto's avatar menu, item for item: Profile, MFA, Sign out.
- *
- * These were also in the rail, on the argument that a security setting
- * nobody finds is a security setting nobody uses. Two places for one thing is
- * worse than one place people already look — and enrolment has a better
- * prompt than a nav entry anyway: the Multi-factor card on the dashboard
- * says "Not enrolled" in words and links straight here.
- */
-const ACCOUNT_ITEMS = computed(() => [
-  { to: '/portal/profile', label: 'Profile', icon: 'fa-user' },
-  { to: '/portal/mfa', label: 'Multi-factor authentication', icon: 'fa-shield-halved',
-    mark: user.value?.mfaEnrolled ? null : '1' },
-  { divider: true },
-  { to: '/dashboard', label: 'Administrator console', icon: 'fa-gauge' },
-  { divider: true },
-  { action: 'signout', label: 'Sign out', icon: 'fa-right-from-bracket', tone: 'bad' }
-])
-
-function onAccount (action) { if (action === 'signout') signOut() }
-
-
-const crumb = computed(() => {
-  const all = [...NAV,
-      { to: '/portal/profile', label: 'Profile' },
-      { to: '/portal/mfa', label: 'Multi-factor' }]
-  const hit = all.find(n => n.exact ? route.path === n.to : route.path.startsWith(n.to))
-  return ['My access', hit?.label || 'Dashboard']
-})
 
 function isOn (n) { return n.exact ? route.path === n.to : route.path.startsWith(n.to) }
 
-const theme = ref(localStorage.getItem('i365.theme') || 'light')
-function toggleTheme () {
-  theme.value = theme.value === 'dark' ? 'light' : 'dark'
-  document.documentElement.setAttribute('data-i-theme', theme.value)
-  try { localStorage.setItem('i365.theme', theme.value) } catch {}
-}
+const who = computed(() =>
+  [user.value?.firstName, user.value?.lastName].filter(Boolean).join(' ') ||
+  user.value?.username || '')
+
+const isDark = computed(() => theme.value === 'dark')
 
 function signOut () {
   portalSignOut()
@@ -98,89 +72,104 @@ function signOut () {
 
 onMounted(() => {
   if (!portalUser.value) router.replace('/portal/signin')
-  document.documentElement.setAttribute('data-i-theme', theme.value)
 })
 </script>
 
 <template>
-  <div class="i-app" :class="{ 'i-navopen': navOpen }">
-    <!-- The admin console's rail, carrying the portal's own map. -->
-    <nav class="i-rail" aria-label="Main navigation">
-      <div class="i-brand">
-        <span class="i-mark" aria-hidden="true">
-          <Mark :size="22" />
-        </span>
-        <span class="i-wm">InstaSafe</span>
-        <span class="i-tenant">my access</span>
-      </div>
+  <!-- Production's header. The admin one carries a session timer and the
+       trial link; an employee has neither to act on, so this is the same
+       markup with those two omitted. -->
+  <header
+    class="header d-flex justify-content-between align-items-center px-3"
+    id="Header" :data-theme="theme" data-type="user"
+  >
+    <div class="header-left d-flex align-items-center">
+      <span>
+        <button
+          class="btn btn-sidebar d-block d-lg-none" aria-label="Menu"
+          @click="sidebarOpen = !sidebarOpen"
+        >☰</button>
+      </span>
+      <RouterLink to="/portal">
+        <img src="/brand/instasafe-lockup-color.svg" alt="Company Logo" class="company-logo">
+      </RouterLink>
+      <RouterLink to="/portal" class="company-name d-none d-sm-block"> {{ tenant.name }}</RouterLink>
+    </div>
 
-      <div class="i-navwrap">
-        <div class="i-navsec">Overview</div>
-        <RouterLink
-          v-for="n in NAV" :key="n.to" class="i-navitem" :to="n.to"
-          :aria-current="isOn(n) ? 'page' : null" @click="navOpen = false"
+    <div class="header-center">
+      <span class="user-last-login d-none d-xl-block">Signed in as {{ who }}</span>
+    </div>
+
+    <div class="header-right d-flex align-items-center">
+      <a class="faq me-3 d-none d-md-block" href="https://instasafe.com/resources/faqs/" target="_blank" rel="noopener">
+        <i class="fas fa-question-circle me-1" /> FAQ
+      </a>
+      <a class="help me-3 d-none d-md-block" href="http://support.instasafe.com/" target="_blank" rel="noopener">
+        <i class="fas fa-info-circle me-1" /> Help
+      </a>
+
+      <!-- The sliding ball is pure CSS off this checkbox. The id differs from
+           the console's because both headers are `#checkbox` in production
+           and only one is ever mounted - but a stale label association is a
+           silent failure, so they are kept distinct here. -->
+      <span class="theme-btn me-3 d-flex align-items-center">
+        <input type="checkbox" class="checkbox" id="checkbox" :checked="isDark" @change="toggleTheme">
+        <label for="checkbox" class="checkbox-label">
+          <span class="side-icon light-side-icon"><i class="fas fa-sun" /></span>
+          <span class="side-icon dark-side-icon"><i class="fas fa-moon" /></span>
+          <span class="ball"><i class="fas fa-sun light-icon" /><i class="fas fa-moon dark-icon" /></span>
+        </label>
+      </span>
+
+      <div class="dropdown">
+        <img
+          :src="user?.photo || '/prod/img/avatar.svg'" :alt="who"
+          class="rounded-circle profile-img member-profile-img"
+          data-bs-toggle="dropdown" aria-expanded="false" role="button"
         >
-          <i class="fa-solid" :class="n.icon" aria-hidden="true" />
-          <span class="i-lab">{{ n.label }}</span>
-        </RouterLink>
-
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><RouterLink class="dropdown-item" to="/portal/profile">Profile</RouterLink></li>
+          <li><RouterLink class="dropdown-item" to="/portal/mfa">MFA</RouterLink></li>
+          <li><a class="dropdown-item" role="button" @click="signOut">Sign out</a></li>
+        </ul>
       </div>
+    </div>
+  </header>
 
-    </nav>
+  <!-- Production's sidebar: labels only, no per-item icons, and the current
+       page is `li.is-active`. Three entries, so no treeview. -->
+  <aside class="sidebar-wrapper" id="SideBar" :class="{ 'sidebar-open': sidebarOpen }">
+    <div class="sidebar">
+      <ul class="sidebar-menu">
+        <li v-for="n in NAV" :key="n.to" :class="isOn(n) ? 'is-active' : ''">
+          <RouterLink :to="n.to" class="link" @click="sidebarOpen = false">
+            <span class="menu-title"> {{ n.label }} </span>
+          </RouterLink>
+        </li>
+      </ul>
+    </div>
+  </aside>
 
-    <main class="i-main">
-      <header class="i-topbar">
-        <button class="i-tbtn i-icon d-md-none" aria-label="Open navigation" @click="navOpen = !navOpen">
-          <i class="fa-solid fa-bars" aria-hidden="true" />
-        </button>
-
-        <nav class="i-crumb d-none d-lg-flex" aria-label="Breadcrumb">
-          <template v-for="(c, i) in crumb" :key="c">
-            <span v-if="i" aria-hidden="true">&rsaquo;</span>
-            <strong v-if="i === crumb.length - 1">{{ c }}</strong>
-            <span v-else>{{ c }}</span>
-          </template>
-        </nav>
-
-        <span style="flex:1" />
-
-        <div class="i-tgroup">
-          <button
-            class="i-tbtn i-icon" :title="theme === 'dark' ? 'Light theme' : 'Dark theme'"
-            :aria-label="theme === 'dark' ? 'Light theme' : 'Dark theme'" @click="toggleTheme"
-          >
-            <i class="fa-solid" :class="theme === 'dark' ? 'fa-sun' : 'fa-moon'" aria-hidden="true" />
-          </button>
-
-          <!-- Velto's three, in velto's place. -->
-          <AccountMenu
-            :name="[user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username"
-            :secondary="user?.email || user?.username"
-            :photo="user?.photo || ''"
-            context="My access"
-            :items="ACCOUNT_ITEMS" @select="onAccount"
-          />
-        </div>
-      </header>
-
+  <div class="content-wrapper">
+    <section>
       <!-- Velto never tells an employee their sessions are recorded. If a
            company is going to watch, saying so is the minimum, and it costs
            one line. -->
-      <p v-if="demo.sessionRecording" class="p-recbar">
-        <i class="fa-solid fa-circle-dot" aria-hidden="true" />
-        Your sessions to company applications are being recorded.
-      </p>
+      <div v-if="demo.sessionRecording" class="container-fluid pb-0">
+        <div class="alert alert-info d-flex align-items-center mb-0" role="alert">
+          <i class="fas fa-circle-dot me-2" />
+          Your sessions to company applications are being recorded.
+        </div>
+      </div>
 
       <RouterView />
-    </main>
-
-    <div v-if="navOpen" class="i-scrim d-md-none" @click="navOpen = false" />
-
-    <!-- Demo scaffolding: the states a seeded tenant never reaches. -->
-    <DemoStates />
-
-    <!-- The same guide as the console, reading the portal's half of the
-         script. One character across both seats, because it is one product. -->
-    <Buddy scope="portal" />
+    </section>
   </div>
+
+  <!-- Demo scaffolding: the states a seeded tenant never reaches. -->
+  <DemoStates />
+
+  <!-- The same guide as the console, reading the portal's half of the
+       script. One character across both seats, because it is one product. -->
+  <Buddy scope="portal" />
 </template>

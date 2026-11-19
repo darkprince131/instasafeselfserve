@@ -112,7 +112,7 @@ function onCode (e) {
   <div class="background-container" />
   <div class="main-container">
     <div class="glass-card">
-      <img src="/prod/ext/companies/instasafe.png" alt="Instasafe" class="logo img-fluid d-block mx-auto">
+      <img src="/brand/instasafe-lockup-color.svg" alt="InstaSafe" class="logo img-fluid d-block mx-auto">
 
       <section>
         <!-- 1 · who -->

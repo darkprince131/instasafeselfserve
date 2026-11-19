@@ -386,12 +386,17 @@ const style = computed(() => at.value
   --pb-dim: var(--i-dim, #5a5c66);
   --pb-accent: var(--i-v600, #656195);
 }
+/* The portal used to have a canvas of its own - `.p-app` - which is where
+   portal.css scoped its `--p-*` tokens. The member area now wears
+   production's shell, that wrapper is gone, and the tokens resolved to a
+   dark card on a light page. Both seats are one product and one skin, so
+   both read the same set. */
 .pip-portal {
-  --pb-card: var(--p-card, #fff);
-  --pb-rule: var(--p-rule, #e4e4ea);
-  --pb-ink: var(--p-ink, #1b1c20);
-  --pb-dim: var(--p-dim, #5a5c66);
-  --pb-accent: var(--p-violet, #656195);
+  --pb-card: var(--i-canvas, #fff);
+  --pb-rule: var(--i-rule, #e4e4ea);
+  --pb-ink: var(--i-ink, #1b1c20);
+  --pb-dim: var(--i-dim, #5a5c66);
+  --pb-accent: var(--i-v600, #656195);
 }
 
 /* Production's primary is not one colour. In the console a .btn-primary is

@@ -179,208 +179,285 @@ onMounted(() => { probe(); load() })
 </script>
 
 <template>
-  <div class="p-wide">
-    <!-- ------------------------------------------------------- welcome -->
-    <section class="p-hero">
-      <span class="p-heroav">{{ (user?.firstName || user?.username || '?').slice(0, 1).toUpperCase() }}</span>
-      <div class="p-herobody">
-        <h1>Welcome, {{ user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.username }}</h1>
-        <p class="p-herosub">
-          <span class="i-tech">{{ user?.username }}</span>
-          <span v-if="user?.email"> · {{ user.email }}</span>
-        </p>
+  <!-- Production's member page sits in the same `.content-wrapper >
+       .container-fluid` as every console screen - style.css proves it with
+       `.content-wrapper .container-fluid .container-welcome`, an orange #f60
+       heading that exists for exactly this page. Everything below is stock
+       Bootstrap 5.3.8 inside it: cards, tables, badges. -->
+  <div class="container-fluid" id="MemberDashboard" data-type="user">
+    <div class="container-welcome">
+      Welcome, {{ user?.firstName ? user.firstName : user?.username }}
+    </div>
+    <p class="text-center text-secondary mb-4">
+      {{ user?.username }}<span v-if="user?.email"> &middot; {{ user.email }}</span>
+    </p>
+
+    <!-- Velto renders these four as identical grey pills whatever their
+         state, so they read as decoration. An enforced control says so here,
+         an unenforced one says that too, and Multi-factor links to the page
+         that fixes it. -->
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4 mb-4">
+      <div v-for="p in policies" :key="p.key" class="col">
+        <component
+          :is="p.to ? 'RouterLink' : 'div'" :to="p.to"
+          class="card shadow h-100 text-decoration-none"
+        >
+          <div class="card-body">
+            <i class="fas member-icon mb-2" :class="p.icon" aria-hidden="true" />
+            <h6 class="text-secondary text-uppercase mb-1">{{ p.label }}</h6>
+            <p class="fw-semibold mb-2">
+              {{ p.on ? p.onText : p.offText }}
+              <span class="badge rounded-pill ms-1" :class="p.on ? 'bg-success' : 'bg-secondary'">
+                {{ p.on ? 'on' : 'off' }}
+              </span>
+            </p>
+            <p class="text-secondary small mb-0">{{ p.help }}</p>
+          </div>
+        </component>
       </div>
-    </section>
+    </div>
 
-    <!-- Velto's four chips, saying what they are rather than only existing. -->
-    <section class="p-pols">
-      <component
-        :is="p.to ? 'RouterLink' : 'div'" v-for="p in policies" :key="p.key"
-        :to="p.to" class="p-pol" :class="{ 'is-on': p.on }"
-      >
-        <i class="fa-solid p-polic" :class="p.icon" aria-hidden="true" />
-        <span class="p-poll">{{ p.label }}</span>
-        <strong class="p-polv">{{ p.on ? p.onText : p.offText }}</strong>
-        <span class="p-polh">{{ p.help }}</span>
-      </component>
-    </section>
-
-    <!-- --------------------------------------------------------- agent -->
-    <section class="p-card p-agent" :class="'is-' + agent">
-      <div class="p-agenti">
+    <!-- The agent decides whether anything else on this page will work, so it
+         leads and can be acted on. Velto gives it a third of a row and no way
+         forward. The probe is real: a loopback request that genuinely fails. -->
+    <div class="card shadow mb-4">
+      <div class="card-body d-flex flex-wrap align-items-center gap-3">
         <i
-          class="fa-solid"
-          :class="agent === 'running' ? 'fa-circle-check'
-            : agent === 'checking' ? 'fa-circle-notch fa-spin' : 'fa-circle-exclamation'"
-          aria-hidden="true"
+          class="fas fa-2x" aria-hidden="true"
+          :class="agent === 'running' ? 'fa-circle-check text-success'
+            : agent === 'checking' ? 'fa-circle-notch fa-spin text-secondary'
+            : 'fa-circle-exclamation text-danger'"
         />
+        <div class="flex-grow-1">
+          <h5 class="mb-1">
+            {{ agent === 'running' ? 'The agent is running'
+              : agent === 'checking' ? 'Checking this device…' : 'The agent is not running' }}
+          </h5>
+          <p class="mb-1">
+            <template v-if="agent === 'running'">
+              Everything below is reachable from this machine.
+            </template>
+            <template v-else-if="agent === 'checking'">
+              Looking for the InstaSafe agent on this machine.
+            </template>
+            <template v-else>
+              Network applications will not connect until it is installed and
+              started. Web applications still open in the browser.
+            </template>
+          </p>
+          <p v-if="agentCheckedAt" class="text-secondary small mb-0">
+            Checked at {{ agentCheckedAt.toLocaleTimeString() }} — this really
+            probes for the agent rather than assuming.
+          </p>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="operation-btn btn btn-primary" @click="probe">Check again</button>
+          <RouterLink v-if="agent === 'missing'" class="operation-btn btn btn-success" to="/portal/downloads">
+            Get the agent
+          </RouterLink>
+        </div>
       </div>
-      <div class="p-agentb">
-        <h2>
-          {{ agent === 'running' ? 'The agent is running'
-            : agent === 'checking' ? 'Checking this device…' : 'The agent is not running' }}
-        </h2>
-        <p>
-          <template v-if="agent === 'running'">
-            Everything below is reachable from this machine.
-          </template>
-          <template v-else-if="agent === 'checking'">
-            Looking for the InstaSafe agent on this machine.
-          </template>
-          <template v-else>
-            Network applications will not connect until it is installed and
-            started. Web applications still open in the browser.
-          </template>
-        </p>
-        <p v-if="agentCheckedAt" class="p-agentw">
-          Checked at {{ agentCheckedAt.toLocaleTimeString() }} — this really probes
-          for the agent rather than assuming.
-        </p>
-      </div>
-      <div class="p-agenta">
-        <button class="p-btn p-ghost" @click="probe">
-          <i class="fa-solid fa-rotate" aria-hidden="true" /> Check again
-        </button>
-        <RouterLink v-if="agent === 'missing'" class="p-btn" to="/portal/downloads">
-          <i class="fa-solid fa-download" aria-hidden="true" /> Get the agent
-        </RouterLink>
-      </div>
-    </section>
+    </div>
 
     <!-- ------------------------------------------------------ sessions -->
-    <div class="p-grid2">
-      <section class="p-card">
-        <h2 class="p-cardh"><i class="fa-solid fa-right-to-bracket" aria-hidden="true" /> This session</h2>
-        <template v-if="current">
-          <p class="p-big">{{ stamp(current.startedAt) }}</p>
-          <p class="p-sub">{{ ago(current.startedAt) }}</p>
-          <dl class="p-kv">
-            <dt>Where</dt><dd>{{ current.city || '—' }}</dd>
-            <dt>Gateway</dt><dd class="i-tech">{{ current.gateway || '—' }}</dd>
-            <dt>Opened</dt><dd>{{ current.application || '—' }}</dd>
-            <dt>This browser</dt><dd>{{ thisBrowser || 'Unknown' }}</dd>
-          </dl>
-        </template>
-        <p v-else class="p-sub">No session recorded yet.</p>
-      </section>
+    <div class="row g-4 mb-4">
+      <div class="col-12 col-lg-6">
+        <div class="card shadow h-100">
+          <div class="card-body">
+            <h5 class="card-title">This session</h5>
+            <template v-if="current">
+              <p class="fs-5 mb-0">{{ stamp(current.startedAt) }}</p>
+              <p class="text-secondary small">{{ ago(current.startedAt) }}</p>
+              <table class="table table-borderless align-middle mb-0">
+                <tbody>
+                  <tr><td class="text-secondary">Where</td><td>{{ current.city || '—' }}</td></tr>
+                  <tr><td class="text-secondary">Gateway</td><td>{{ current.gateway || '—' }}</td></tr>
+                  <tr><td class="text-secondary">Opened</td><td>{{ current.application || '—' }}</td></tr>
+                  <tr><td class="text-secondary">This browser</td><td>{{ thisBrowser || 'Unknown' }}</td></tr>
+                </tbody>
+              </table>
+            </template>
+            <p v-else class="text-secondary mb-0">No session recorded yet.</p>
+          </div>
+        </div>
+      </div>
 
-      <section class="p-card">
-        <h2 class="p-cardh"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true" /> Previous session</h2>
-        <template v-if="previous">
-          <p class="p-big">{{ stamp(previous.startedAt) }}</p>
-          <p class="p-sub">{{ ago(previous.startedAt) }}</p>
-          <dl class="p-kv">
-            <dt>Where</dt><dd>{{ previous.city || '—' }}</dd>
-            <dt>Gateway</dt><dd class="i-tech">{{ previous.gateway || '—' }}</dd>
-            <dt>Opened</dt><dd>{{ previous.application || '—' }}</dd>
-          </dl>
-          <p class="p-note">
-            Not you? Change your password and tell your administrator.
-          </p>
-        </template>
-        <p v-else class="p-sub">This is your first recorded session.</p>
-      </section>
+      <div class="col-12 col-lg-6">
+        <div class="card shadow h-100">
+          <div class="card-body">
+            <h5 class="card-title">Previous session</h5>
+            <template v-if="previous">
+              <p class="fs-5 mb-0">{{ stamp(previous.startedAt) }}</p>
+              <p class="text-secondary small">{{ ago(previous.startedAt) }}</p>
+              <table class="table table-borderless align-middle mb-2">
+                <tbody>
+                  <tr><td class="text-secondary">Where</td><td>{{ previous.city || '—' }}</td></tr>
+                  <tr><td class="text-secondary">Gateway</td><td>{{ previous.gateway || '—' }}</td></tr>
+                  <tr><td class="text-secondary">Opened</td><td>{{ previous.application || '—' }}</td></tr>
+                </tbody>
+              </table>
+              <p class="text-secondary small mb-0">
+                Not you? Change your password and tell your administrator.
+              </p>
+            </template>
+            <p v-else class="text-secondary mb-0">This is your first recorded session.</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ------------------------------------------------------- devices -->
-    <section class="p-card">
-      <h2 class="p-cardh">
-        <i class="fa-solid fa-laptop" aria-hidden="true" /> Your devices
-        <span class="p-count">{{ devices.length }}</span>
-      </h2>
-      <div v-if="devices.length" class="p-devs">
-        <article v-for="d in devices" :key="d.id" class="p-dev">
-          <header>
-            <strong>{{ d.name }}</strong>
-            <span class="p-tag" :class="d.status === 'approved' ? 'is-ok' : 'is-att'">
-              {{ d.status === 'approved' ? 'approved' : d.status }}
-            </span>
-          </header>
-          <p class="p-devos">{{ d.os || 'Unknown operating system' }}</p>
-          <!-- Velto labels these Manufacturer, Model and Hostname. This
-               console identifies a device by serial, MAC and UUID together,
-               which is what it actually stores and what an administrator
-               looking for this machine would search on. -->
-          <dl class="p-kv p-kvtight">
-            <dt>Serial</dt><dd class="i-tech">{{ d.serialNumber || '—' }}</dd>
-            <dt>MAC</dt><dd class="i-tech">{{ d.macAddress || '—' }}</dd>
-            <dt>Agent</dt><dd class="i-tech">{{ d.agentVersion || '—' }}</dd>
-            <dt>Registered</dt><dd>{{ stamp(d.enrolledAt) }}</dd>
-          </dl>
-          <p v-if="d.posture && d.posture !== 'pass'" class="p-note">
-            This device fails a posture check, so it may be refused even
-            though it is approved.
-          </p>
-        </article>
+    <div class="card shadow mb-4">
+      <div class="card-body">
+        <h5 class="card-title">
+          Your devices
+          <span class="badge rounded-pill bg-secondary ms-1">{{ devices.length }}</span>
+        </h5>
+        <div v-if="devices.length" class="table-responsive table-container">
+          <table class="table table-hover table-borderless align-middle text-nowrap">
+            <thead class="border-bottom table-light">
+              <tr>
+                <th>Name</th><th>Operating system</th>
+                <!-- Velto labels these Manufacturer, Model and Hostname. This
+                     console identifies a device by serial, MAC and UUID
+                     together, which is what it stores and what an
+                     administrator looking for this machine would search on. -->
+                <th>Serial</th><th>MAC</th><th>Agent</th><th>Registered</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="d in devices" :key="d.id">
+                <td>{{ d.name }}</td>
+                <td>{{ d.os || 'Unknown' }}</td>
+                <td>{{ d.serialNumber || '—' }}</td>
+                <td>{{ d.macAddress || '—' }}</td>
+                <td>{{ d.agentVersion || '—' }}</td>
+                <td>{{ stamp(d.enrolledAt) }}</td>
+                <td>
+                  <span
+                    class="badge rounded-pill"
+                    :class="d.status === 'approved' ? 'bg-success' : 'bg-warning text-dark'"
+                  >{{ d.status === 'approved' ? 'Approved' : d.status }}</span>
+                  <span
+                    v-if="d.posture && d.posture !== 'pass'"
+                    class="badge rounded-pill bg-danger ms-1"
+                  >posture fails</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else class="text-secondary mb-0">
+          No device is registered to you yet. Sign in from the machine you work
+          on with the agent running, and it registers itself.
+        </p>
       </div>
-      <p v-else class="p-sub">
-        No device is registered to you yet. Sign in from the machine you work
-        on with the agent running, and it registers itself.
-      </p>
-    </section>
+    </div>
 
     <!-- -------------------------------------------------- applications -->
-    <section class="p-card">
-      <h2 class="p-cardh">
-        <i class="fa-solid fa-globe" aria-hidden="true" /> Opens in the browser
-        <span class="p-count">{{ webApps.length }}</span>
-      </h2>
-      <div v-if="webApps.length" class="p-apps">
-        <RouterLink v-for="a in webApps.slice(0, 8)" :key="a.id" class="p-appt" to="/portal/applications">
-          <span class="p-appi">{{ String(a.type || '?').toUpperCase().slice(0, 3) }}</span>
-          <span class="p-appn">{{ a.name }}</span>
-          <i class="fa-solid fa-arrow-right" aria-hidden="true" />
-        </RouterLink>
+    <div class="row g-4 mb-4">
+      <div class="col-12 col-lg-6">
+        <div class="card shadow h-100">
+          <div class="card-body">
+            <h5 class="card-title">
+              Opens in the browser
+              <span class="badge rounded-pill bg-secondary ms-1">{{ webApps.length }}</span>
+            </h5>
+            <div v-if="webApps.length" class="list-group list-group-flush">
+              <RouterLink
+                v-for="a in webApps.slice(0, 8)" :key="a.id"
+                class="list-group-item list-group-item-action d-flex align-items-center justify-content-between"
+                to="/portal/applications"
+              >
+                <span>
+                  <span class="badge rounded-pill bg-secondary me-2">
+                    {{ String(a.type || '?').toUpperCase().slice(0, 3) }}
+                  </span>
+                  {{ a.name }}
+                </span>
+                <i class="fas fa-chevron-right text-secondary" aria-hidden="true" />
+              </RouterLink>
+            </div>
+            <p v-else class="text-secondary mb-0">Nothing has been assigned to you yet.</p>
+            <RouterLink v-if="webApps.length > 8" class="d-inline-block mt-2" to="/portal/applications">
+              See all {{ webApps.length }}
+            </RouterLink>
+          </div>
+        </div>
       </div>
-      <p v-else class="p-sub">Nothing has been assigned to you yet.</p>
-      <RouterLink v-if="webApps.length > 8" class="p-link" to="/portal/applications">
-        See all {{ webApps.length }}
-      </RouterLink>
-    </section>
 
-    <section class="p-card">
-      <h2 class="p-cardh">
-        <i class="fa-solid fa-network-wired" aria-hidden="true" /> Needs the agent
-        <span class="p-count">{{ netApps.length }}</span>
-      </h2>
-      <div v-if="netApps.length" class="p-apps">
-        <span v-for="a in netApps.slice(0, 8)" :key="a.id" class="p-appt is-static">
-          <span class="p-appi">{{ String(a.type || '?').toUpperCase().slice(0, 3) }}</span>
-          <span class="p-appn">{{ a.name }}</span>
-        </span>
+      <div class="col-12 col-lg-6">
+        <div class="card shadow h-100">
+          <div class="card-body">
+            <h5 class="card-title">
+              Needs the agent
+              <span class="badge rounded-pill bg-secondary ms-1">{{ netApps.length }}</span>
+            </h5>
+            <div v-if="netApps.length" class="list-group list-group-flush">
+              <span
+                v-for="a in netApps.slice(0, 8)" :key="a.id"
+                class="list-group-item d-flex align-items-center"
+              >
+                <span class="badge rounded-pill bg-secondary me-2">
+                  {{ String(a.type || '?').toUpperCase().slice(0, 3) }}
+                </span>
+                {{ a.name }}
+              </span>
+            </div>
+            <p v-else class="text-secondary mb-0">No network application is assigned to you.</p>
+            <p v-if="netApps.length && agent !== 'running'" class="text-secondary small mt-2 mb-0">
+              These reach your network through the agent, which is not running,
+              so they will not connect right now.
+            </p>
+          </div>
+        </div>
       </div>
-      <p v-else class="p-sub">No network application is assigned to you.</p>
-      <p v-if="netApps.length && agent !== 'running'" class="p-note">
-        These reach your network through the agent, which is not running, so
-        they will not connect right now.
-      </p>
-    </section>
+    </div>
 
-    <!-- ------------------------------------------------------- history -->
-    <section class="p-card">
-      <h2 class="p-cardh"><i class="fa-solid fa-list" aria-hidden="true" /> Recently opened</h2>
-      <ul v-if="history.length" class="p-hist">
-        <li v-for="(h, i) in history" :key="h.id || i">
-          <span class="p-histn">{{ h.destination || h.application || h.name }}</span>
-          <span class="p-hists">
-            <span v-if="h.action && h.action !== 'Allowed'" class="p-tag is-att">{{ h.action }}</span>
-            {{ ago(h.at) }}
-          </span>
-        </li>
-      </ul>
-      <p v-else class="p-sub">Nothing opened yet.</p>
-    </section>
+    <!-- --------------------------------------------- history and testing -->
+    <div class="row g-4">
+      <div class="col-12 col-lg-8">
+        <div class="card shadow h-100">
+          <div class="card-body">
+            <h5 class="card-title">Recently opened</h5>
+            <div v-if="history.length" class="table-responsive table-container">
+              <table class="table table-hover table-borderless align-middle text-nowrap">
+                <thead class="border-bottom table-light">
+                  <tr><th>Destination</th><th>Action</th><th>When</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(h, i) in history" :key="h.id || i">
+                    <td>{{ h.destination || h.application || h.name }}</td>
+                    <td>
+                      <span
+                        class="badge rounded-pill"
+                        :class="h.action && h.action !== 'Allowed' ? 'bg-danger' : 'bg-success'"
+                      >{{ h.action || 'Allowed' }}</span>
+                    </td>
+                    <td>{{ ago(h.at) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="text-secondary mb-0">Nothing opened yet.</p>
+          </div>
+        </div>
+      </div>
 
-    <!-- --------------------------------------------------- network test -->
-    <section class="p-card">
-      <h2 class="p-cardh"><i class="fa-solid fa-gauge-high" aria-hidden="true" /> Connection test</h2>
-      <p class="p-sub">
-        If something feels slow, run this before raising a ticket — it is the
-        first thing support will ask for.
-      </p>
-      <RouterLink class="p-btn p-ghost mt-2" to="/reports/network-test">
-        <i class="fa-solid fa-play" aria-hidden="true" /> Run a test
-      </RouterLink>
-    </section>
+      <div class="col-12 col-lg-4">
+        <div class="card shadow h-100">
+          <div class="card-body">
+            <h5 class="card-title">Connection test</h5>
+            <p class="text-secondary">
+              If something feels slow, run this before raising a ticket — it is
+              the first thing support will ask for.
+            </p>
+            <RouterLink class="operation-btn btn btn-primary" to="/reports/network-test">
+              Run a test
+            </RouterLink>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

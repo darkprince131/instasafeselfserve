@@ -149,11 +149,14 @@ async function submitPassword () {
  * answering a push. Velto distinguishes them and so does this.
  */
 const METHODS = [
-  { key: 'totp', label: 'TOTP', icon: 'fa-clock', real: true,
+  /* `mark: true` draws the InstaSafe swirl instead of a Font Awesome glyph.
+     Production uses it for the two methods that are its own product rather
+     than a generic channel - the authenticator app and the push. */
+  { key: 'totp', label: 'TOTP', icon: 'fa-clock', mark: true, real: true,
     sub: 'A rotating code from an authenticator app',
     good: 'Works with no signal and no data — nothing is ever sent, so nothing can be intercepted.',
     hint: 'Open your authenticator app and read the six digits for InstaSafe.' },
-  { key: 'push', label: 'Authenticator', icon: 'fa-bell',
+  { key: 'push', label: 'Authenticator', icon: 'fa-bell', mark: true,
     sub: 'Approve a prompt in the InstaSafe app',
     good: 'You see the device, address and location before you approve — and you can refuse.',
     hint: 'Check the request matches where you are, then approve or reject it.' },
@@ -244,7 +247,7 @@ onUnmounted(() => clearInterval(ticker))
   <div class="background-container" />
   <div class="main-container">
     <div class="glass-card" :class="{ 'card-wide': step === 'choose' }">
-      <img src="/prod/ext/companies/instasafe.png" alt="Instasafe" class="logo img-fluid d-block mx-auto">
+      <img src="/brand/instasafe-lockup-color.svg" alt="InstaSafe" class="logo img-fluid d-block mx-auto">
 
       <section id="CompanyMemberAccountController">
         <!-- 1 - who -->
@@ -373,7 +376,8 @@ onUnmounted(() => clearInterval(ticker))
               @focus="preview = m.key" @blur="preview = ''"
               @click="pick(m)"
             >
-              <i class="fa-solid" :class="m.icon" aria-hidden="true" />
+              <img v-if="m.mark" src="/brand/instasafe-mark-color.svg" alt="" class="method-mark">
+              <i v-else class="fa-solid" :class="m.icon" aria-hidden="true" />
               <span>{{ m.label }}</span>
             </button>
           </div>
@@ -471,6 +475,13 @@ onUnmounted(() => clearInterval(ticker))
   text-align: center;
   cursor: pointer;
   transition: border-color .2s ease, background-color .2s ease;
+}
+
+.method-mark {
+  /* Matched to the glyph beside it rather than to the artwork's own box, so
+     a tile with the mark and a tile with a Font Awesome icon sit level. */
+  width: 1.9rem;
+  height: 1.9rem;
 }
 
 .method-tile i {
