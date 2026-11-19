@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, inject, onMounted } from 'vue'
 import api from '../../api'
+import { checkField } from '../../lib/validate.js'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
@@ -51,7 +52,7 @@ const sessionApp = ref(null)
 const TYPES = [
   { key: 'web', label: 'Web', icon: 'fa-globe', hint: 'Reached in a browser through the gateway.',
     fields: [
-      { key: 'host', label: 'URL', required: true, placeholder: 'https://app.internal',
+      { key: 'host', label: 'URL', format: 'url', required: true, placeholder: 'https://app.internal',
         hint: 'Reached through the gateway — it never needs a public DNS record.' },
       { key: 'landingPage', label: 'Landing page', placeholder: '/login',
         hint: 'Where a session starts. Blank opens the root.' }
@@ -67,30 +68,30 @@ const TYPES = [
 
   { key: 'fqdn', label: 'FQDN', icon: 'fa-at', hint: 'A named host reached by domain name.',
     fields: [
-      { key: 'host', label: 'Fully qualified domain name', required: true, placeholder: 'site.instasafe.com' },
-      { key: 'ports', label: 'Ports', required: true, placeholder: '80,443,1000-2000',
+      { key: 'host', label: 'Fully qualified domain name', format: 'fqdn', required: true, placeholder: 'site.instasafe.com' },
+      { key: 'ports', label: 'Ports', format: 'portList', required: true, placeholder: '80,443,1000-2000',
         hint: 'Comma-separated, and ranges are allowed.' }
     ],
     controls: [] },
 
   { key: 'rdp', label: 'RDP', icon: 'fa-desktop', hint: 'Windows remote desktop.',
     fields: [
-      { key: 'host', label: 'IP address', required: true, placeholder: '10.20.4.17' },
-      { key: 'port', label: 'Port', type: 'number' }
+      { key: 'host', label: 'IP address', format: 'ipv4', required: true, placeholder: '10.20.4.17' },
+      { key: 'port', label: 'Port', format: 'port', type: 'number' }
     ],
     controls: ['blockCopyPaste', 'watermark', 'sessionRecording'] },
 
   { key: 'ssh', label: 'SSH', icon: 'fa-terminal', hint: 'Shell access to a host.',
     fields: [
-      { key: 'host', label: 'IP address', required: true, placeholder: '10.20.4.17' },
-      { key: 'port', label: 'Port', type: 'number' }
+      { key: 'host', label: 'IP address', format: 'ipv4', required: true, placeholder: '10.20.4.17' },
+      { key: 'port', label: 'Port', format: 'port', type: 'number' }
     ],
     controls: ['blockCopyPaste', 'watermark', 'sessionRecording'] },
 
   { key: 'vnc', label: 'VNC', icon: 'fa-display', hint: 'Remote framebuffer.',
     fields: [
-      { key: 'host', label: 'IP address', required: true, placeholder: '10.20.4.17' },
-      { key: 'port', label: 'Port', type: 'number' }
+      { key: 'host', label: 'IP address', format: 'ipv4', required: true, placeholder: '10.20.4.17' },
+      { key: 'port', label: 'Port', format: 'port', type: 'number' }
     ],
     controls: ['blockCopyPaste', 'watermark', 'sessionRecording'] },
 
@@ -98,15 +99,15 @@ const TYPES = [
     fields: [
       { key: 'driver', label: 'Driver', required: true,
         options: ['PostgreSQL', 'MySQL', 'Microsoft SQL Server', 'Oracle', 'MongoDB'] },
-      { key: 'host', label: 'Host', required: true, placeholder: '10.20.4.33' },
-      { key: 'port', label: 'Port', type: 'number' }
+      { key: 'host', label: 'Host', format: 'host', required: true, placeholder: '10.20.4.33' },
+      { key: 'port', label: 'Port', format: 'port', type: 'number' }
     ],
     /* Velto records RDP, SSH and VNC sessions and not database ones. */
     controls: [] },
 
   { key: 'wfs', label: 'File share', icon: 'fa-folder-open', hint: 'A Windows file share.',
     fields: [
-      { key: 'host', label: 'Host', required: true, placeholder: '10.20.4.50' },
+      { key: 'host', label: 'Host', format: 'host', required: true, placeholder: '10.20.4.50' },
       { key: 'share', label: 'Share', required: true, placeholder: 'folder name' },
       { key: 'domain', label: 'Domain', placeholder: 'ISA' }
     ],
@@ -237,11 +238,43 @@ function openEdit (row) {
   form.value = { ...blank(), ...row }
   editingId.value = row.id
   sheetOpen.value = true
+  submitted.value = false; touched.value = {}
+}
+
+/* Which fields have been left, so a half-typed URL is not marked wrong while
+   it is still being typed. Cleared whenever the sheet opens. */
+const touched = ref({})
+const submitted = ref(false)
+
+/**
+ * The format complaint for one field of the chosen type.
+ *
+ * `host` is a URL on a web application, a domain name on an FQDN one and an
+ * address on RDP, SSH and VNC - so the format lives on the type's own field
+ * definition rather than on the key, which is where the resource config can
+ * put it.
+ */
+function fieldError (f) {
+  if (!submitted.value && !touched.value[f.key]) return ''
+  return checkField(f, form.value[f.key])
+}
+
+function formatErrors () {
+  return (typeDef.value?.fields || [])
+    .map(f => ({ f, msg: checkField(f, form.value[f.key]) }))
+    .filter(x => x.msg)
 }
 
 async function save () {
+  submitted.value = true
   if (!form.value.name || !form.value.host) {
     toast('Name and host are required', 'bad'); return
+  }
+  const bad = formatErrors()
+  if (bad.length) {
+    toast('Check ' + bad[0].f.label, 'bad')
+    document.getElementById('af_' + bad[0].f.key)?.focus()
+    return
   }
   saving.value = true
   try {
@@ -253,6 +286,7 @@ async function save () {
       toast(form.value.name + ' added')
     }
     sheetOpen.value = false
+  submitted.value = false; touched.value = {}
     refreshStats(); page.value = 1; load()
   } catch (err) {
     toast('Could not save: ' + (err?.message || 'unknown error'), 'bad')
@@ -377,8 +411,11 @@ onMounted(async () => {
             </select>
             <input
               v-else :id="'af_' + f.key" class="i-ctl"
+              :class="{ 'is-invalid': fieldError(f) }"
               :type="f.type || 'text'" v-model="form[f.key]" :placeholder="f.placeholder || ''"
+              @blur="touched[f.key] = true"
             >
+            <p v-if="fieldError(f)" class="invalid-feedback d-block">{{ fieldError(f) }}</p>
             <p v-if="f.hint" class="i-hint">{{ f.hint }}</p>
           </div>
 

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, inject, onMounted } from 'vue'
 import api from '../../api'
+import { cidr } from '../../lib/validate.js'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
@@ -191,6 +192,7 @@ function openView (row) {
   current.value = row
   mode.value = 'view'
   sheetOpen.value = true
+  submitted.value = false; touchedNets.value = {}
 }
 
 function openEdit () {
@@ -250,7 +252,33 @@ function validate () {
   return ''
 }
 
+/* Which network rows have been left, so a half-typed CIDR stays quiet. */
+const touchedNets = ref({})
+const submitted = ref(false)
+
+/** The complaint for one protected-network row, or '' . */
+function netError (i) {
+  if (!submitted.value && !touchedNets.value[i]) return ''
+  return cidr(form.value.protectedNetworks[i])
+}
+
+/** Every bad row, by index. */
+function netErrors () {
+  return (form.value.protectedNetworks || [])
+    .map((v, i) => ({ i, msg: cidr(v) }))
+    .filter(x => x.msg)
+}
+
 async function save () {
+  submitted.value = true
+  const badNets = netErrors()
+  if (badNets.length) {
+    /* A gateway protecting 10.0.0.5/24 looks right and routes nothing, so
+       this is refused rather than saved and puzzled over later. */
+    document.getElementById('pro_net-' + badNets[0].i)?.focus()
+    toast('Check the protected network', 'bad')
+    return
+  }
   const problem = validate()
   if (problem) { toast(problem, 'bad'); return }
   saving.value = true
@@ -272,6 +300,7 @@ async function save () {
       toast(`${body.name} added — it reports as down until its agent checks in`)
     }
     sheetOpen.value = false
+  submitted.value = false; touchedNets.value = {}
     refreshStats(); load()
   } catch (e) {
     toast('Could not save: ' + (e?.message || 'unknown error'), 'bad')
@@ -391,9 +420,11 @@ onMounted(() => { loadLicence(); load() })
               :id="'pro_net-' + i"
               :name="'pro_net-' + i"
               class="i-ctl i-tech"
+              :class="{ 'is-invalid': netError(i) }"
               type="text"
               placeholder="Enter Protected Network"
               v-model="form.protectedNetworks[i]"
+              @blur="touchedNets[i] = true"
             >
             <button
               class="btn btn-outline-secondary btn-sm"
@@ -405,6 +436,9 @@ onMounted(() => { loadLicence(); load() })
               <i class="fa-solid fa-xmark" aria-hidden="true" />
             </button>
           </div>
+          <p v-for="e in netErrors()" :key="'ne' + e.i" class="invalid-feedback d-block mt-0">
+            Row {{ e.i + 1 }}: {{ e.msg }}
+          </p>
           <button class="btn btn-warning nav-btn" type="button" @click="addNetwork">Add more</button>
           <p class="i-hint">
             In CIDR, one per row — <span class="i-tech">10.130.0.0/16</span>.

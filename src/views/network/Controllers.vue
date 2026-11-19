@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, inject, onMounted, onUnmounted } from 'vue'
 import api from '../../api'
+import { checkField } from '../../lib/validate.js'
 import { CLOUD_SERVERS, NETMASK_BITS, mgtPortFor } from '../../api/seed.js'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import DataTable from '../../components/ui/DataTable.vue'
@@ -197,6 +198,7 @@ const FIELDS = [
     key: 'port',
     id: 'port',
     label: 'Port',
+    format: 'port',
     required: true,
     type: 'number',
     min: 0,
@@ -214,6 +216,7 @@ const FIELDS = [
     key: 'network',
     id: 'internal_network',
     label: 'Internal network',
+    format: 'ipv4',
     required: true,
     placeholder: 'Network'
   },
@@ -258,6 +261,7 @@ function openView (row) {
   current.value = row
   mode.value = 'view'
   sheetOpen.value = true
+  submitted.value = false; touched.value = {}
 }
 
 function openEdit () {
@@ -307,7 +311,30 @@ function validate () {
   return ''
 }
 
+const touched = ref({})
+const submitted = ref(false)
+
+function fieldError (f) {
+  if (isLocked(f)) return ''
+  if (!submitted.value && !touched.value[f.key]) return ''
+  return checkField(f, form.value[f.key])
+}
+
+function formatErrors () {
+  return FIELDS
+    .filter(f => !isLocked(f))
+    .map(f => ({ f, msg: checkField(f, form.value[f.key]) }))
+    .filter(x => x.msg)
+}
+
 async function save () {
+  submitted.value = true
+  const bad = formatErrors()
+  if (bad.length) {
+    toast('Check ' + bad[0].f.label, 'bad')
+    document.getElementById(bad[0].f.id)?.focus()
+    return
+  }
   const problem = validate()
   if (problem) { toast(problem, 'bad'); return }
   saving.value = true
@@ -332,6 +359,7 @@ async function save () {
       toast(`${body.name} added — commit it to put it live`)
     }
     sheetOpen.value = false
+  submitted.value = false; touched.value = {}
     load()
   } catch (e) {
     toast('Could not save: ' + (e?.message || 'unknown error'), 'bad')
@@ -471,15 +499,17 @@ onUnmounted(() => clearInterval(poll))
               :id="f.id"
               :name="f.id"
               class="i-ctl"
-              :class="{ 'i-tech': f.type === 'number' }"
+              :class="[{ 'i-tech': f.type === 'number' }, fieldError(f) ? 'is-invalid' : '']"
               :type="f.type || 'text'"
               :min="f.min"
               :max="f.max"
               :placeholder="f.placeholder || ''"
               :disabled="!!isLocked(f)"
               v-model="form[f.key]"
+              @blur="touched[f.key] = true"
             >
 
+            <p v-if="fieldError(f)" class="invalid-feedback d-block">{{ fieldError(f) }}</p>
             <p v-if="isLocked(f)" class="i-hint">{{ isLocked(f) }}</p>
           </div>
         </div>

@@ -114,6 +114,22 @@ export function portRange (v) {
     (Number(a) >= Number(b) ? 'The first port must be lower than the second.' : '')
 }
 
+/**
+ * A comma-separated list of ports and ranges, as the application form takes
+ * it: "80,443,1000-2000". Each item is reported by name, because a list of
+ * eight with one wrong is not usefully described as "invalid".
+ */
+export function portList (v) {
+  if (!v) return ''
+  const items = String(v).split(',').map(x => x.trim())
+  if (items.some(x => !x)) return 'There is an empty entry — check for a stray comma.'
+  for (const item of items) {
+    const err = portRange(item)
+    if (err) return items.length > 1 ? `"${item}": ${err.charAt(0).toLowerCase()}${err.slice(1)}` : err
+  }
+  return ''
+}
+
 /* ------------------------------------------------------------ directories */
 
 /* RFC 4514 attribute type: a descriptor, or a dotted OID. */
@@ -273,7 +289,7 @@ export function url (v) {
 /* ------------------------------------------------------------------ wiring */
 
 export const FORMATS = {
-  ipv4, cidr, fqdn, host, port, portRange, dn, ldapFilter, email, upn, macAddress, url
+  ipv4, cidr, fqdn, host, port, portRange, portList, dn, ldapFilter, email, upn, macAddress, url
 }
 
 /**
