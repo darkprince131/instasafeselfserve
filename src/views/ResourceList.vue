@@ -3,6 +3,7 @@ import { ref, computed, watch, inject, onMounted, defineAsyncComponent } from 'v
 import { useRoute, useRouter } from 'vue-router'
 import api from '../api'
 import { checkField } from '../lib/validate.js'
+import { check as checkLimit, recordCreate } from '../lib/limits.js'
 import PageHeader from '../components/ui/PageHeader.vue'
 import DataTable from '../components/ui/DataTable.vue'
 import ListTools from '../components/ui/ListTools.vue'
@@ -491,6 +492,13 @@ async function saveForm () {
     return
   }
 
+  /* The allowance is checked only on create: editing what you already have
+     is never what a cap is for. */
+  if (!editingId.value) {
+    const over = checkLimit(cfg.value.resource)
+    if (over) { toast(over, 'bad'); return }
+  }
+
   saving.value = true
   const payload = convertTimes({ ...form.value }, fromLocalInput)
   try {
@@ -504,6 +512,8 @@ async function saveForm () {
          authProfiles, so a profile created without its `type` was saved and
          then vanished from the list it was created on. */
       await api[cfg.value.resource].create({ ...cfg.value.baseFilter, ...payload })
+      /* After the write, never before - a refused create must not spend one. */
+      recordCreate(cfg.value.resource)
       toast('Created')
     }
     sheetOpen.value = false

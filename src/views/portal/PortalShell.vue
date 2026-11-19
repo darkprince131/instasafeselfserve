@@ -1,6 +1,6 @@
 <script setup>
 import { RouterView, RouterLink, useRouter, useRoute } from 'vue-router'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { portalUser, portalSignOut } from '../../lib/portal-session.js'
 import DemoStates from '../../components/portal/DemoStates.vue'
 import Buddy from '../../components/guide/Buddy.vue'
@@ -65,6 +65,27 @@ const who = computed(() =>
 
 const isDark = computed(() => theme.value === 'dark')
 
+/* Velto's member header carries the same session timer as the admin one -
+   read live from /member/dashboard, where it showed 02:56:37 beside FAQ.
+   It was left off here on the assumption an employee had nothing to act on;
+   they do, it is the same 180-minute portal timeout. */
+const left = ref(2 * 3600 + 56 * 60 + 37)
+let timer
+const clock = computed(() => {
+  const h = Math.floor(left.value / 3600)
+  const m = Math.floor((left.value % 3600) / 60)
+  const sec = left.value % 60
+  return [h, m, sec].map(n => String(n).padStart(2, '0')).join(':')
+})
+const timerClass = computed(() => (left.value <= 600 ? 'timer-red' : 'timer-green'))
+onMounted(() => { timer = setInterval(() => { if (left.value > 0) left.value-- }, 1000) })
+onUnmounted(() => clearInterval(timer))
+
+/* Velto prints the last *logout*, not the last login, and the tenant's
+   timezone beside it. */
+const lastLogout = computed(() => tenant.value.lastLogin || '—')
+const timezone = 'Asia/Kolkata'
+
 function signOut () {
   portalSignOut()
   router.push('/portal/signin')
@@ -97,10 +118,18 @@ onMounted(() => {
     </div>
 
     <div class="header-center">
-      <span class="user-last-login d-none d-xl-block">Signed in as {{ who }}</span>
+      <span class="user-last-login d-none d-xl-block">Last portal logout on {{ lastLogout }}</span>
+      <span class="user-last-login d-none d-xl-block">Current timezone: {{ timezone }}</span>
     </div>
 
     <div class="header-right d-flex align-items-center">
+      <div
+        class="d-flex align-items-center gap-2 py-1 px-3 rounded-pill fw-semibold shadow-sm me-3 d-none d-md-block"
+        :class="timerClass"
+      >
+        <i class="fa-solid fa-clock" /><span>{{ clock }}</span>
+      </div>
+
       <a class="faq me-3 d-none d-md-block" href="https://instasafe.com/resources/faqs/" target="_blank" rel="noopener">
         <i class="fas fa-question-circle me-1" /> FAQ
       </a>

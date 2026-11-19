@@ -2,6 +2,7 @@
 import { ref, computed, watch, inject, onMounted } from 'vue'
 import api from '../../api'
 import { cidr } from '../../lib/validate.js'
+import { check as checkLimit, recordCreate } from '../../lib/limits.js'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
@@ -279,6 +280,10 @@ async function save () {
     toast('Check the protected network', 'bad')
     return
   }
+  if (mode.value !== 'edit') {
+    const over = checkLimit('gateways')
+    if (over) { toast(over, 'bad'); return }
+  }
   const problem = validate()
   if (problem) { toast(problem, 'bad'); return }
   saving.value = true
@@ -297,6 +302,7 @@ async function save () {
     } else {
       /* A gateway is not carrying traffic until its agent checks in. */
       await api.gateways.create({ ...body, status: 'down', sessions: 0, version: '3.4.1' })
+      recordCreate('gateways')
       toast(`${body.name} added — it reports as down until its agent checks in`)
     }
     sheetOpen.value = false

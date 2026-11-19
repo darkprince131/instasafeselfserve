@@ -2,6 +2,7 @@
 import { ref, computed, watch, inject, onMounted } from 'vue'
 import api from '../../api'
 import { checkField } from '../../lib/validate.js'
+import { check as checkLimit, recordCreate } from '../../lib/limits.js'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
@@ -265,6 +266,29 @@ function formatErrors () {
     .filter(x => x.msg)
 }
 
+/**
+ * The application logo.
+ *
+ * Velto serves one per application from
+ * /storage/images/applications/logo_file<hash>.png, and the member dashboard
+ * draws it at 42px beside the name. There is nowhere to upload to here, so
+ * the image is kept on the record as a data URL - the same thing the portal
+ * profile photo does, and the same reason: it has to survive a reload in a
+ * browser-only sandbox.
+ *
+ * 1.5 MB is the cap. A 42px circle needs nothing like it, and IndexedDB is
+ * the visitor's own disk.
+ */
+function onLogo (e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (file.size > 1_500_000) { toast('That image is over 1.5 MB. Pick a smaller one.', 'bad'); return }
+  const reader = new FileReader()
+  reader.onload = () => { form.value.logo = String(reader.result) }
+  reader.onerror = () => toast('That file could not be read', 'bad')
+  reader.readAsDataURL(file)
+}
+
 async function save () {
   submitted.value = true
   if (!form.value.name || !form.value.host) {
@@ -276,6 +300,10 @@ async function save () {
     document.getElementById('af_' + bad[0].f.key)?.focus()
     return
   }
+  if (!editingId.value) {
+    const over = checkLimit('applications')
+    if (over) { toast(over, 'bad'); return }
+  }
   saving.value = true
   try {
     if (editingId.value) {
@@ -283,6 +311,7 @@ async function save () {
       toast(form.value.name + ' updated')
     } else {
       await api.applications.create({ ...form.value })
+      recordCreate('applications')
       toast(form.value.name + ' added')
     }
     sheetOpen.value = false
@@ -391,6 +420,33 @@ onMounted(async () => {
             <label for="an">Name <span class="i-req">*</span></label>
             <input id="an" class="i-ctl" v-model="form.name" placeholder="Finance DB">
           </div>
+
+          <!-- The logo the member side draws beside this application. -->
+          <div class="i-field">
+            <label>Logo</label>
+            <div class="d-flex align-items-center gap-3">
+              <img
+                v-if="form.logo" :src="form.logo" alt=""
+                class="rounded-circle" width="42" height="42"
+              >
+              <span v-else class="app-logo-blank rounded-circle">
+                {{ (form.name || '?').slice(0, 1).toUpperCase() }}
+              </span>
+              <label class="i-filepick mb-0">
+                <input type="file" accept="image/*" @change="onLogo">
+                <i class="fa-solid fa-upload" aria-hidden="true" />
+                <span>{{ form.logo ? 'Replace logo' : 'Upload logo' }}</span>
+              </label>
+              <button v-if="form.logo" class="btn btn-outline-secondary btn-sm" type="button" @click="form.logo = ''">
+                Remove
+              </button>
+            </div>
+            <p class="i-hint">
+              Square works best, under 1.5 MB. Employees see it beside this
+              application on their own dashboard. Without one they see its
+              initial instead.
+            </p>
+          </div>
           <div class="i-field">
             <label for="ao">Owner</label>
             <select id="ao" class="i-ctl" v-model="form.owner">
@@ -475,3 +531,18 @@ onMounted(async () => {
     </ConfirmModal>
   </div>
 </template>
+
+<style scoped>
+/* The circle the uploaded logo fills, so the empty state occupies the same
+   space as the filled one. Production's muted surface and label colour. */
+.app-logo-blank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background-color: rgba(var(--bs-body-color-rgb), .08);
+  color: #656195;
+  font-weight: 700;
+}
+</style>

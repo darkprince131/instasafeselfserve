@@ -165,6 +165,30 @@ function stamp (v) {
 
 /* "Was that me?" is the only question a session card is ever asked, and this
    browser can answer half of it for free. */
+/**
+ * The platform this browser is on, read the same way as the browser name.
+ */
+const thisPlatform = computed(() => {
+  const ua = navigator.userAgent
+  if (/Windows/.test(ua)) return 'Windows'
+  if (/Mac OS X/.test(ua)) return 'macOS'
+  if (/Android/.test(ua)) return 'Android'
+  if (/iPhone|iPad/.test(ua)) return 'iOS'
+  if (/Linux/.test(ua)) return 'Linux'
+  return 'Unknown'
+})
+
+/**
+ * The client address and country velto prints beside the name.
+ *
+ * A browser cannot learn its own public address without asking somebody, and
+ * asking means a request to a third party from a visitor's machine - which
+ * this demo does not do. So both come off the session record the sandbox
+ * already holds, and read "—" when there is none rather than inventing one.
+ */
+const clientIp = computed(() => current.value?.ip || '')
+const country = computed(() => current.value?.city || '')
+
 const thisBrowser = computed(() => {
   const ua = navigator.userAgent
   if (/Edg\//.test(ua)) return 'Edge'
@@ -188,8 +212,13 @@ onMounted(() => { probe(); load() })
     <div class="container-welcome">
       Welcome, {{ user?.firstName ? user.firstName : user?.username }}
     </div>
+    <!-- Velto prints the username, the client IP and the country - not the
+         email. The address is the one thing on this page an employee can
+         check against where they actually are. -->
     <p class="text-center text-secondary mb-4">
-      {{ user?.username }}<span v-if="user?.email"> &middot; {{ user.email }}</span>
+      {{ user?.username }}
+      <span v-if="clientIp"> &middot; {{ clientIp }}</span>
+      <span v-if="country"> &middot; {{ country }}</span>
     </p>
 
     <!-- Velto renders these four as identical grey pills whatever their
@@ -268,12 +297,16 @@ onMounted(() => { probe(); load() })
             <template v-if="current">
               <p class="fs-5 mb-0">{{ stamp(current.startedAt) }}</p>
               <p class="text-secondary small">{{ ago(current.startedAt) }}</p>
+              <!-- Velto's own rows: login time, address, platform, device
+                   kind, browser, country. -->
               <table class="table table-borderless align-middle mb-0">
                 <tbody>
-                  <tr><td class="text-secondary">Where</td><td>{{ current.city || '—' }}</td></tr>
-                  <tr><td class="text-secondary">Gateway</td><td>{{ current.gateway || '—' }}</td></tr>
-                  <tr><td class="text-secondary">Opened</td><td>{{ current.application || '—' }}</td></tr>
-                  <tr><td class="text-secondary">This browser</td><td>{{ thisBrowser || 'Unknown' }}</td></tr>
+                  <tr><td class="text-secondary">Login Time</td><td>{{ stamp(current.startedAt) }}</td></tr>
+                  <tr><td class="text-secondary">IP Address</td><td>{{ current.ip || clientIp || '—' }}</td></tr>
+                  <tr><td class="text-secondary">Platform</td><td>{{ current.os || thisPlatform }}</td></tr>
+                  <tr><td class="text-secondary">Device</td><td>{{ current.deviceKind || 'Desktop' }}</td></tr>
+                  <tr><td class="text-secondary">Browser</td><td>{{ thisBrowser || 'Unknown' }}</td></tr>
+                  <tr><td class="text-secondary">Country</td><td>{{ current.city || country || '—' }}</td></tr>
                 </tbody>
               </table>
             </template>
@@ -291,9 +324,10 @@ onMounted(() => { probe(); load() })
               <p class="text-secondary small">{{ ago(previous.startedAt) }}</p>
               <table class="table table-borderless align-middle mb-2">
                 <tbody>
-                  <tr><td class="text-secondary">Where</td><td>{{ previous.city || '—' }}</td></tr>
-                  <tr><td class="text-secondary">Gateway</td><td>{{ previous.gateway || '—' }}</td></tr>
-                  <tr><td class="text-secondary">Opened</td><td>{{ previous.application || '—' }}</td></tr>
+                  <tr><td class="text-secondary">Login Time</td><td>{{ stamp(previous.startedAt) }}</td></tr>
+                  <tr><td class="text-secondary">IP Address</td><td>{{ previous.ip || '—' }}</td></tr>
+                  <tr><td class="text-secondary">Platform</td><td>{{ previous.os || '—' }}</td></tr>
+                  <tr><td class="text-secondary">Country</td><td>{{ previous.city || '—' }}</td></tr>
                 </tbody>
               </table>
               <p class="text-secondary small mb-0">
@@ -318,20 +352,21 @@ onMounted(() => { probe(); load() })
             <thead class="border-bottom table-light">
               <tr>
                 <th>Name</th><th>Operating system</th>
-                <!-- Velto labels these Manufacturer, Model and Hostname. This
-                     console identifies a device by serial, MAC and UUID
-                     together, which is what it stores and what an
-                     administrator looking for this machine would search on. -->
-                <th>Serial</th><th>MAC</th><th>Agent</th><th>Registered</th><th>Status</th>
+                <!-- Velto's own three. An earlier note here argued for
+                     serial, MAC and agent version instead, on the grounds
+                     that those are what the console stores - but this is the
+                     employee's page, and reading the model off the lid is how
+                     somebody tells which of their three laptops a row is. -->
+                <th>Manufacturer</th><th>Model</th><th>Hostname</th><th>Registered</th><th>Status</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="d in devices" :key="d.id">
                 <td>{{ d.name }}</td>
                 <td>{{ d.os || 'Unknown' }}</td>
-                <td>{{ d.serialNumber || '—' }}</td>
-                <td>{{ d.macAddress || '—' }}</td>
-                <td>{{ d.agentVersion || '—' }}</td>
+                <td>{{ d.manufacturer || '—' }}</td>
+                <td>{{ d.model || '—' }}</td>
+                <td>{{ d.hostname || '—' }}</td>
                 <td>{{ stamp(d.enrolledAt) }}</td>
                 <td>
                   <span

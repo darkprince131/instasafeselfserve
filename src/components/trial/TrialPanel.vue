@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import api from '../../api'
+import { resetCreated } from '../../lib/limits.js'
 import { TOURS } from '../../tours.js'
 import {
   COLLECTIONS, consoleDemo, PRESETS, applyPreset, currentPreset, emptiedCount
@@ -89,6 +90,9 @@ async function resetSandbox () {
   resetting.value = true
   try {
     await api.demo.reset()
+    /* Putting the data back has to put the allowances back with it, or a
+       visitor who resets finds they still cannot add an application. */
+    resetCreated()
     location.reload()
   } finally { resetting.value = false }
 }
