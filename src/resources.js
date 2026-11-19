@@ -192,9 +192,9 @@ export const RESOURCES = {
     form: [
       { key: 'name', name: 'profile_name', label: 'Profile Name', required: true, placeholder: 'Enter Profile Name',
         lockedOnEdit: LOCK_REASON },
-      { key: 'domain', name: 'domain', label: 'Domain', required: true, placeholder: 'corp.example.com' },
-      { key: 'primaryServerIp', name: 'ads_ip', label: 'Primary AD Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true },
-      { key: 'backupServerIp', name: 'bads_ip', label: 'Backup AD Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true,
+      { key: 'domain', format: 'fqdn', name: 'domain', label: 'Domain', required: true, placeholder: 'corp.example.com' },
+      { key: 'primaryServerIp', format: 'host', name: 'ads_ip', label: 'Primary AD Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true },
+      { key: 'backupServerIp', format: 'host', name: 'bads_ip', label: 'Backup AD Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true,
         hint: 'Answered when the primary does not. A directory with one server is a single point of failure for every sign-in.' },
       { key: 'usernameAttribute', name: 'username_attribute', label: 'Username Attribute', required: true,
         options: ['Username', 'User Principal Name (UPN)'],
@@ -203,14 +203,14 @@ export const RESOURCES = {
         options: ['Certificate', 'Password + Certs'] },
       { key: 'bindUser', name: 'bind_user', label: 'Bind User', required: true, placeholder: 'Bind User',
         hint: 'The account this console reads the directory with. It only needs read.' },
-      { key: 'baseDn', name: 'base_dn', label: 'Base DN', required: true, placeholder: 'CN=Users, DC=corp, DC=example' },
-      { key: 'filter', name: 'filter', label: 'Filter', required: true, type: 'textarea',
+      { key: 'baseDn', format: 'dn', name: 'base_dn', label: 'Base DN', required: true, placeholder: 'CN=Users, DC=corp, DC=example' },
+      { key: 'filter', format: 'ldapFilter', name: 'filter', label: 'Filter', required: true, type: 'textarea',
         placeholder: '(&(objectClass=user)(memberOf=CN=GROUPNAME,CN=Users,dc=corp,dc=example))',
         hint: 'Which directory accounts may sign in. Without a memberOf clause this is everybody in the base DN.' },
-      { key: 'primaryDns', name: 'ps_ip', label: 'Primary DNS Server IP', placeholder: 'Eg: 10.x.x.x', half: true },
-      { key: 'secondaryDns', name: 'backup_dns', label: 'Secondary DNS Server IP', placeholder: 'Eg: 10.x.x.x', half: true },
-      { key: 'primaryWins', name: 'primary_wins', label: 'Primary WINS Server IP', placeholder: 'Eg: 10.x.x.x', half: true },
-      { key: 'secondaryWins', name: 'backup_wins', label: 'Secondary WINS Server IP', placeholder: 'Eg: 10.x.x.x', half: true },
+      { key: 'primaryDns', format: 'ipv4', name: 'ps_ip', label: 'Primary DNS Server IP', placeholder: 'Eg: 10.x.x.x', half: true },
+      { key: 'secondaryDns', format: 'ipv4', name: 'backup_dns', label: 'Secondary DNS Server IP', placeholder: 'Eg: 10.x.x.x', half: true },
+      { key: 'primaryWins', format: 'ipv4', name: 'primary_wins', label: 'Primary WINS Server IP', placeholder: 'Eg: 10.x.x.x', half: true },
+      { key: 'secondaryWins', format: 'ipv4', name: 'backup_wins', label: 'Secondary WINS Server IP', placeholder: 'Eg: 10.x.x.x', half: true },
       { key: 'requireSsl', name: 'port', label: 'Require SSL/TLS secure connection', type: 'switch',
         hint: 'Off sends the bind password and every lookup in the clear.' },
       { key: 'kerberosAuth', name: 'kerberos_auth', label: 'Enable Kerberos Authentication', type: 'switch' },
@@ -225,9 +225,9 @@ export const RESOURCES = {
     ],
     columns: [
       { key: 'name', label: 'Profile name', bold: true },
-      { key: 'domain', label: 'Domain' },
-      { key: 'primaryServerIp', label: 'Primary server IP', mono: true },
-      { key: 'backupServerIp', label: 'Backup server IP', mono: true, cell: (v) => v || dash }
+      { key: 'domain', format: 'fqdn', label: 'Domain' },
+      { key: 'primaryServerIp', format: 'host', label: 'Primary server IP', mono: true },
+      { key: 'backupServerIp', format: 'host', label: 'Backup server IP', mono: true, cell: (v) => v || dash }
     ]
   },
 
@@ -256,18 +256,18 @@ export const RESOURCES = {
     form: [
       { key: 'name', name: 'profile_name', label: 'Profile Name', required: true, placeholder: 'Enter Profile Name',
         lockedOnEdit: LOCK_REASON },
-      { key: 'domain', name: 'domain', label: 'Domain', required: true, placeholder: 'ldap.example.com' },
-      { key: 'primaryServerIp', name: 'ads_ip', label: 'Primary AD Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true },
-      { key: 'backupServerIp', name: 'bads_ip', label: 'Backup AD Server IP', required: true, placeholder: 'Eg: 10.x.x.x' },
+      { key: 'domain', format: 'fqdn', name: 'domain', label: 'Domain', required: true, placeholder: 'ldap.example.com' },
+      { key: 'primaryServerIp', format: 'host', name: 'ads_ip', label: 'Primary AD Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true },
+      { key: 'backupServerIp', format: 'host', name: 'bads_ip', label: 'Backup AD Server IP', required: true, placeholder: 'Eg: 10.x.x.x' },
       { key: 'bindUser', name: 'bind_user', label: 'Bind User', required: true, placeholder: 'cn=admin,dc=example,dc=com',
         hint: 'The account this console reads the directory with. It only needs read.' },
       { key: 'authType', name: 'auth_type', label: 'Authentication Type', required: true,
         options: ['Certificate', 'Password + Certs'] },
-      { key: 'baseDn', name: 'base_dn', label: 'Base DN', required: true, placeholder: 'dc=example,dc=com' },
-      { key: 'filter', name: 'filter', label: 'Filter', required: true, type: 'textarea',
+      { key: 'baseDn', format: 'dn', name: 'base_dn', label: 'Base DN', required: true, placeholder: 'dc=example,dc=com' },
+      { key: 'filter', format: 'ldapFilter', name: 'filter', label: 'Filter', required: true, type: 'textarea',
         placeholder: '(|(gidNumber=48681))',
         hint: 'Which directory accounts may sign in. Without it, everybody under the base DN can.' },
-      { key: 'port', name: 'port', label: 'Port', required: true, type: 'number', placeholder: 'Eg: 389', half: true },
+      { key: 'port', format: 'port', name: 'port', label: 'Port', required: true, type: 'number', placeholder: 'Eg: 389', half: true },
       { key: 'protocol', name: 'protocol', label: 'Protocol', default: 'TCP', half: true,
         locked: 'LDAP profiles run over TCP. The console does not offer the choice, here or on the add form.' },
       { key: 'usernameAttribute', name: 'username', label: 'Username Attribute', required: true,
@@ -276,10 +276,10 @@ export const RESOURCES = {
     ],
     columns: [
       { key: 'name', label: 'Profile Name', bold: true },
-      { key: 'domain', label: 'Domain' },
-      { key: 'primaryServerIp', label: 'Primary Server IP', mono: true },
-      { key: 'backupServerIp', label: 'Backup Server IP', mono: true, cell: (v) => v || dash },
-      { key: 'port', label: 'Port', mono: true, align: 'right' },
+      { key: 'domain', format: 'fqdn', label: 'Domain' },
+      { key: 'primaryServerIp', format: 'host', label: 'Primary Server IP', mono: true },
+      { key: 'backupServerIp', format: 'host', label: 'Backup Server IP', mono: true, cell: (v) => v || dash },
+      { key: 'port', format: 'port', label: 'Port', mono: true, align: 'right' },
       /* No pill. Every profile is TCP because the field is fixed, and a mark
          on all of them says nothing — it only spends the colour budget. */
       { key: 'protocol', label: 'Protocol' }
@@ -306,16 +306,16 @@ export const RESOURCES = {
     form: [
       { key: 'name', name: 'profile_name', label: 'Profile Name', required: true, placeholder: 'Enter Profile Name',
         lockedOnEdit: LOCK_REASON },
-      { key: 'port', name: 'port', label: 'Port', required: true, type: 'number', placeholder: 'Eg: 1812', default: 1812,
+      { key: 'port', format: 'port', name: 'port', label: 'Port', required: true, type: 'number', placeholder: 'Eg: 1812', default: 1812,
         hint: '1812 is the standard authentication port; 1645 on older equipment.' },
-      { key: 'radiusServerIp', name: 'rs_ip', label: 'RADIUS Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true },
-      { key: 'backupRadiusServerIp', name: 'brs_ip', label: 'Backup RADIUS Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true }
+      { key: 'radiusServerIp', format: 'host', name: 'rs_ip', label: 'RADIUS Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true },
+      { key: 'backupRadiusServerIp', format: 'host', name: 'brs_ip', label: 'Backup RADIUS Server IP', required: true, placeholder: 'Eg: 10.x.x.x', half: true }
     ],
     columns: [
       { key: 'name', label: 'Name', bold: true },
-      { key: 'radiusServerIp', label: 'RADIUS Server IP', mono: true },
-      { key: 'backupRadiusServerIp', label: 'Backup RADIUS Server IP', mono: true, cell: (v) => v || dash },
-      { key: 'port', label: 'Port', mono: true, align: 'right' }
+      { key: 'radiusServerIp', format: 'host', label: 'RADIUS Server IP', mono: true },
+      { key: 'backupRadiusServerIp', format: 'host', label: 'Backup RADIUS Server IP', mono: true, cell: (v) => v || dash },
+      { key: 'port', format: 'port', label: 'Port', mono: true, align: 'right' }
     ]
   },
 
@@ -351,9 +351,9 @@ export const RESOURCES = {
       { key: 'idpCertificate', name: 'fingerprint', label: 'IDP Certificate', required: true, type: 'textarea',
         placeholder: '-----BEGIN CERTIFICATE-----',
         hint: 'The IdP signing certificate, PEM. Assertions are verified against this, so a rotation at the IdP has to be pasted here or every sign-in fails.' },
-      { key: 'idpSignInUrl', name: 'signin_url', label: 'IDP Sign-In URL', required: true,
+      { key: 'idpSignInUrl', format: 'url', name: 'signin_url', label: 'IDP Sign-In URL', required: true,
         placeholder: 'http://idp.example.com' },
-      { key: 'idpSignOutUrl', name: 'signout_url', label: 'IDP Sign-Out URL', required: true,
+      { key: 'idpSignOutUrl', format: 'url', name: 'signout_url', label: 'IDP Sign-Out URL', required: true,
         placeholder: 'http://idp.example.com' },
       { key: 'nameIdAttribute', name: 'name_id', label: 'NameID Attribute', required: true,
         options: ['Username', 'Email'], default: 'Username',
@@ -363,7 +363,7 @@ export const RESOURCES = {
       { key: 'name', label: 'Name', bold: true },
       { key: 'integrationType', label: 'Integration type' },
       { key: 'idpEntityId', label: 'IdP entity ID', mono: true },
-      { key: 'idpSignInUrl', label: 'IdP sign-in URL', mono: true }
+      { key: 'idpSignInUrl', format: 'url', label: 'IdP sign-in URL', mono: true }
     ]
   },
 
@@ -396,7 +396,7 @@ export const RESOURCES = {
         when: (f) => f.provider === 'Azure',
         hint: 'Azure issues tokens per directory, so the tenant is part of the endpoint. Generic and Google are not asked for one.' },
       { key: 'clientId', name: 'client_id', label: 'Client Id', required: true, placeholder: 'Enter Client Id' },
-      { key: 'redirectUri', name: 'redirect_uri', label: 'Redirect URI',
+      { key: 'redirectUri', format: 'url', name: 'redirect_uri', label: 'Redirect URI',
         default: 'https://instasafe-console-demo.netlify.app/oauth2/callback',
         locked: 'Where the provider sends the user back. The console decides it; copy it into the provider exactly, because a trailing slash is a different URI.' }
     ],
@@ -404,7 +404,7 @@ export const RESOURCES = {
       { key: 'name', label: 'Name', bold: true },
       { key: 'provider', label: 'Provider' },
       { key: 'clientId', label: 'Client ID', mono: true },
-      { key: 'redirectUri', label: 'Redirect URI', mono: true }
+      { key: 'redirectUri', format: 'url', label: 'Redirect URI', mono: true }
     ]
   },
 
@@ -425,16 +425,16 @@ export const RESOURCES = {
       { key: 'clientId', name: 'client_id', label: 'Client Id', required: true, placeholder: 'Enter Client Id' },
       { key: 'scopes', name: 'scopes', label: 'Scopes', required: true, placeholder: 'Enter Scopes',
         hint: 'Space separated. openid is required; profile and email are what fill in the username and the address.' },
-      { key: 'issuerUrl', name: 'issuer_url', label: 'Issuer URL', required: true, placeholder: 'Enter Issuer URL',
+      { key: 'issuerUrl', format: 'url', name: 'issuer_url', label: 'Issuer URL', required: true, placeholder: 'Enter Issuer URL',
         hint: 'The console appends /.well-known/openid-configuration to this.' },
-      { key: 'redirectUri', name: 'redirect_uri', label: 'Redirect URI',
+      { key: 'redirectUri', format: 'url', name: 'redirect_uri', label: 'Redirect URI',
         default: 'https://instasafe-console-demo.netlify.app/openid/callback',
         locked: 'Where the provider sends the user back. The console decides it; copy it into the provider exactly.' }
     ],
     columns: [
       { key: 'name', label: 'Name', bold: true },
       { key: 'clientId', label: 'Client ID', mono: true },
-      { key: 'issuerUrl', label: 'Issuer URL', mono: true }
+      { key: 'issuerUrl', format: 'url', label: 'Issuer URL', mono: true }
     ]
   },
 
@@ -538,7 +538,7 @@ export const RESOURCES = {
     form: [
       { key: 'name', label: 'Service name', required: true, placeholder: 'HTTPS' },
       { key: 'protocol', label: 'Protocol', options: ['tcp', 'udp', 'icmp'] },
-      { key: 'port', label: 'Port', type: 'number', required: true, placeholder: '443' }
+      { key: 'port', format: 'port', label: 'Port', type: 'number', required: true, placeholder: '443' }
     ],
     bulkAdd: true,
     title: 'Application services',
@@ -548,7 +548,7 @@ export const RESOURCES = {
     columns: [
       { key: 'name', label: 'Service', bold: true },
       { key: 'protocol', label: 'Protocol', upper: true },
-      { key: 'port', label: 'Port', mono: true, align: 'right' },
+      { key: 'port', format: 'port', label: 'Port', mono: true, align: 'right' },
       { key: 'createdAt', label: 'Created', cell: fmtDate, dim: true }
     ]
   },
@@ -571,7 +571,7 @@ export const RESOURCES = {
       { key: 'name', label: 'Device', bold: true },
       { key: 'username', label: 'User' },
       { key: 'os', label: 'Operating system' },
-      { key: 'macAddress', label: 'MAC', mono: true },
+      { key: 'macAddress', format: 'macAddress', label: 'MAC', mono: true },
       { key: 'lastSeenAt', label: 'Last seen', cell: fmtAgo, dim: true },
       { key: 'status', label: 'Status', pill: statusPill }
     ]
@@ -687,10 +687,10 @@ export const RESOURCES = {
     columns: [
       { key: 'at', label: 'Access Date', cell: fmtStamp, mono: true },
       { key: 'username', label: 'Username' },
-      { key: 'publicIp', label: 'Public IP', mono: true },
+      { key: 'publicIp', format: 'ipv4', label: 'Public IP', mono: true },
       { key: 'country', label: 'Country' },
       { key: 'destination', label: 'Destination', mono: true },
-      { key: 'port', label: 'Port', mono: true, align: 'right' },
+      { key: 'port', format: 'port', label: 'Port', mono: true, align: 'right' },
       /* Blocked is the exception and takes the mark; allowed is the ordinary
          case and stays plain, as the colour budget requires. */
       { key: 'action', label: 'Action', pill: (v) => v === 'Blocked' ? 'bad' : null }
@@ -740,7 +740,7 @@ export const RESOURCES = {
     form: [
       { key: 'name', name: 'profile_name', label: 'Profile Name', required: true, placeholder: 'Enter Profile Name',
         lockedOnEdit: LOCK_REASON },
-      { key: 'domain', name: 'domain', label: 'Domain', required: true, placeholder: 'corp.example.com' },
+      { key: 'domain', format: 'fqdn', name: 'domain', label: 'Domain', required: true, placeholder: 'corp.example.com' },
       { key: 'tenantId', name: 'tenant_id', label: 'Tenant ID', required: true, placeholder: 'Enter Tenant Id' },
       { key: 'clientId', name: 'client_id', label: 'Client Id', required: true, placeholder: 'Enter Client Id' },
       { key: 'groups', name: 'groups', label: 'Groups', required: true, placeholder: 'Mention AzureAD group names',
@@ -784,7 +784,7 @@ export const RESOURCES = {
     form: [
       { key: 'name', name: 'profile_name', label: 'Profile Name', required: true, placeholder: 'Enter Profile Name',
         lockedOnEdit: LOCK_REASON },
-      { key: 'domain', name: 'domain', label: 'Domain', required: true, placeholder: 'example.com' },
+      { key: 'domain', format: 'fqdn', name: 'domain', label: 'Domain', required: true, placeholder: 'example.com' },
       { key: 'adminUser', name: 'bind_user', label: 'Admin User', required: true, placeholder: 'Admin User',
         hint: 'A Workspace admin the directory is read as. It only needs to read users and groups.' },
       { key: 'authType', name: 'auth_type', label: 'Authentication Type', required: true,
@@ -794,7 +794,7 @@ export const RESOURCES = {
     ],
     columns: [
       { key: 'name', label: 'Profile Name', bold: true },
-      { key: 'domain', label: 'Domain' }
+      { key: 'domain', format: 'fqdn', label: 'Domain' }
     ]
   },
 
@@ -820,7 +820,7 @@ export const RESOURCES = {
     formSubtitle: 'A sub admin signs into this console with a role that limits what they can touch.',
     form: [
       { key: 'name', label: 'Name', required: true, placeholder: 'Priya Nair' },
-      { key: 'email', label: 'Email', required: true, placeholder: 'priya@example.com' },
+      { key: 'email', format: 'email', label: 'Email', required: true, placeholder: 'priya@example.com' },
       { key: 'role', label: 'Role', options: ['Read only', 'Helpdesk', 'Security analyst', 'Full admin'] },
       { key: 'enabled', label: 'Account is active', type: 'switch' }
     ],
@@ -832,7 +832,7 @@ export const RESOURCES = {
     emptyBody: 'Only the primary administrator can sign in. Add one to delegate.',
     columns: [
       { key: 'name', label: 'Name', bold: true },
-      { key: 'email', label: 'Email', dim: true },
+      { key: 'email', format: 'email', label: 'Email', dim: true },
       { key: 'role', label: 'Role' },
       { key: 'enabled', label: 'Active', bool: true }
     ]
@@ -1144,7 +1144,7 @@ export const RESOURCES = {
       { key: 'osFamily', label: 'Platform' },
       { key: 'os', label: 'Operating system', dim: true },
       { key: 'agentVersion', label: 'Agent', mono: true },
-      { key: 'ipAddress', label: 'Address', mono: true },
+      { key: 'ipAddress', format: 'ipv4', label: 'Address', mono: true },
       { key: 'city', label: 'Location' },
       { key: 'status', label: 'Status',
         cell: (v) => v.charAt(0).toUpperCase() + v.slice(1),
@@ -1246,7 +1246,7 @@ export const RESOURCES = {
       { key: 'username', label: 'User name', bold: true },
       { key: 'lastSeenAt', label: 'Last Login', mono: true,
         cell: (v) => v ? fmtStamp(v) : 'Never signed in' },
-      { key: 'email', label: 'Email', dim: true },
+      { key: 'email', format: 'email', label: 'Email', dim: true },
       { key: 'authProfile', label: 'Auth profile' },
       { key: 'status', label: 'Status', pill: statusPill }
     ]
@@ -1488,7 +1488,7 @@ export const RESOURCES = {
     columns: [
       { key: 'name', label: 'Name', bold: true },
       { key: 'spEntityId', label: 'SP Entity ID', mono: true },
-      { key: 'spAcsUrl', label: 'SP ACS URL', mono: true, dim: true },
+      { key: 'spAcsUrl', format: 'url', label: 'SP ACS URL', mono: true, dim: true },
       { key: 'spType', label: 'SP TYPE' },
       /* Velto shows the expiry only once you open a record, which is how a
          certificate quietly expires. A column makes it unmissable. */
@@ -1501,7 +1501,7 @@ export const RESOURCES = {
         options: ['Azure', 'Google', 'Custom'], default: 'Custom', half: true },
       { key: 'spEntityId', name: 'sp_entity_id', label: 'SP Entity ID', required: true,
         placeholder: 'http://sp.instasafe.com', mono: true },
-      { key: 'spAcsUrl', name: 'sp_acs_url', label: 'SP ACS URL', required: true,
+      { key: 'spAcsUrl', format: 'url', name: 'sp_acs_url', label: 'SP ACS URL', required: true,
         placeholder: 'http://sp.instasafe.com', mono: true },
       { key: 'overrideIdpEntityId', type: 'switch', label: 'Override Default IDP Entity ID',
         hint: 'Off, the entity ID is this tenant’s own URL. Some service providers were registered against a different one and cannot be changed.' },
@@ -1571,13 +1571,13 @@ export const RESOURCES = {
     }],
     columns: [
       { key: 'name', label: 'Name', bold: true },
-      { key: 'clientIp', label: 'Client IP', mono: true },
+      { key: 'clientIp', format: 'ipv4', label: 'Client IP', mono: true },
       { key: 'clientSecretUpdatedAt', label: 'Secret set', cell: fmtAgo, dim: true }
     ],
     form: [
       { key: 'name', name: 'profile_name', label: 'Name', required: true,
         placeholder: 'Enter Profile Name', lockedOnEdit: LOCK_REASON, half: true },
-      { key: 'clientIp', name: 'client_ip', label: 'Client IP', required: true,
+      { key: 'clientIp', format: 'ipv4', name: 'client_ip', label: 'Client IP', required: true,
         placeholder: 'Eg: 10.x.x.x', mono: true, half: true },
       { key: 'note', type: 'note',
         hint: 'The shared secret is issued when the client is created and is never shown again. Change Client Secret, on the client’s View panel, issues a new one.' }
@@ -1610,7 +1610,7 @@ export const RESOURCES = {
     sort: 'expiresAt',
     dir: 'desc',
     columns: [
-      { key: 'email', label: 'Email', bold: true },
+      { key: 'email', format: 'email', label: 'Email', bold: true },
       { key: 'expiresAt', label: 'Expiring at', mono: true, cell: fmtStamp },
       /* Live is the exception worth seeing here, not expired: somebody
          outside the company can currently read this tenant. Velto marks
@@ -1620,7 +1620,7 @@ export const RESOURCES = {
         pill: (v, row) => new Date(row.expiresAt) > new Date() ? 'att' : null }
     ],
     form: [
-      { key: 'email', name: 'email', type: 'email', label: 'Email', required: true,
+      { key: 'email', format: 'email', name: 'email', type: 'email', label: 'Email', required: true,
         placeholder: 'Enter email',
         lockedOnEdit: 'A grant is made to one address. To give access to somebody else, make them their own grant — then the log says who it was.',
         hint: 'The engineer signs in with this address. It is the address the access is logged against.' },
@@ -1642,7 +1642,7 @@ export const RESOURCES = {
       body: 'will be able to sign in again immediately.'
     },
     columns: [
-      { key: 'ip', label: 'IP', mono: true, bold: true },
+      { key: 'ip', format: 'ipv4', label: 'IP', mono: true, bold: true },
       { key: 'username', label: 'Username', dim: true, cell: (v) => v || 'unknown' },
       { key: 'attempts', label: 'Failed attempts', align: 'right', num: true },
       { key: 'blockedAt', label: 'Blocked at', cell: fmtAgo, dim: true },

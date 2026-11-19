@@ -127,30 +127,39 @@ onMounted(load)
 
     <p v-if="loading" class="text-secondary">Loading…</p>
 
-    <div v-else-if="shown.length" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
-      <div v-for="a in shown" :key="a.id" class="col">
-        <button class="card shadow h-100 w-100 text-start border-0" @click="open(a)">
-          <div class="card-body d-flex flex-column">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <span class="badge rounded-pill bg-secondary">{{ kind(a).label }}</span>
-              <!-- An application that cannot open right now says so on the
-                   card rather than failing when it is clicked. -->
-              <span
-                v-if="!kind(a).browser && !agentUp"
-                class="badge rounded-pill bg-warning text-dark"
-              >agent off</span>
-            </div>
-            <strong class="d-block">{{ a.name }}</strong>
-            <span v-if="a.host" class="text-secondary small d-block">{{ a.host }}</span>
-            <span class="text-secondary small mt-2">
-              <template v-if="!kind(a).browser && !agentUp">
-                Needs the agent, which is not running
-              </template>
-              <template v-else>{{ kind(a).how }}</template>
-            </span>
+    <!-- Velto's own application tile: an uploaded logo at 42px, the name,
+         the type behind a layer-group glyph, and an arrow. `row g-3` with
+         col-xl-3 col-lg-4 col-md-4, exactly as the live member dashboard
+         serves it. -->
+    <div v-else-if="shown.length" class="row g-3">
+      <div v-for="a in shown" :key="a.id" class="col-xl-3 col-lg-4 col-md-4">
+            <a
+              href="javascript:void(0)"
+              class="d-flex align-items-center w-100 p-3 rounded bg-body-secondary text-decoration-none h-100"
+              @click="open(a)"
+            >
+              <div class="d-flex align-items-center gap-3 overflow-hidden">
+                <!-- Velto serves a logo uploaded per application. A seeded
+                     one has none, so the fallback is the same circle with the
+                     application's initial in it rather than a broken image. -->
+                <img
+                  v-if="a.logo" :src="a.logo" :alt="a.name"
+                  class="shrink-0 rounded-circle" width="42" height="42"
+                >
+                <span v-else class="app-logo-fallback shrink-0 rounded-circle">
+                  {{ (a.name || '?').slice(0, 1).toUpperCase() }}
+                </span>
+                <div class="overflow-hidden">
+                  <div class="fw-semibold text-truncate">{{ a.name }}</div>
+                  <div class="small text-muted text-truncate">
+                    <i class="fa fa-layer-group me-1" aria-hidden="true" />
+                    {{ String(a.type || '').toUpperCase() }}
+                  </div>
+                </div>
+              </div>
+              <div class="ms-auto text-muted"><i class="fa fa-arrow-right" aria-hidden="true" /></div>
+            </a>
           </div>
-        </button>
-      </div>
     </div>
 
     <div v-else class="text-center m-2">
@@ -163,3 +172,19 @@ onMounted(load)
     </div>
   </div>
 </template>
+
+<style scoped>
+/* The circle velto's uploaded logo would fill. Production's own muted
+   surface and label colour, so an application without a logo does not
+   introduce one. */
+.app-logo-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background-color: rgba(var(--bs-body-color-rgb), .08);
+  color: #656195;
+  font-weight: 700;
+}
+</style>

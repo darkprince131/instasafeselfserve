@@ -2,6 +2,7 @@
 import { ref, computed, watch, inject, onMounted, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../api'
+import { checkField } from '../lib/validate.js'
 import PageHeader from '../components/ui/PageHeader.vue'
 import DataTable from '../components/ui/DataTable.vue'
 import ListTools from '../components/ui/ListTools.vue'
@@ -39,6 +40,12 @@ const refreshStats = inject('refreshStats', () => {})
 
 const rows = ref([])
 const error = ref('')
+
+/* Which fields the visitor has left, so a half-typed DN is not marked wrong
+   while it is still being typed. A field shouts on blur, or once Save has
+   been pressed. */
+const touched = ref({})
+const submitted = ref(false)
 const total = ref(0)
 const loading = ref(true)
 const page = ref(1)
@@ -127,6 +134,7 @@ function reallyOpenAdd () {
   form.value = blankForm()
   editingId.value = null
   sheetOpen.value = true
+  submitted.value = false; touched.value = {}
 }
 
 /**
@@ -445,11 +453,44 @@ function readValue (f) {
   return (v === '' || v === undefined || v === null) ? '—' : String(v)
 }
 
+/**
+ * The format complaint for one field, or '' when there is nothing to say.
+ *
+ * Presence stays separate: `required` answers "is it filled in", this
+ * answers "is what is in it the right shape". A field that is empty and
+ * optional returns '' from both.
+ */
+function fieldError (f) {
+  if (!f || locked(f) || !visible(f)) return ''
+  if (!touched.value[f.key] && !submitted.value) return ''
+  return checkField(f, form.value[f.key])
+}
+
+/** Every format complaint on the form, in the order the fields appear. */
+function formatErrors () {
+  return (cfg.value.form || [])
+    .filter(f => visible(f) && !locked(f))
+    .map(f => ({ f, msg: checkField(f, form.value[f.key]) }))
+    .filter(x => x.msg)
+}
+
 async function saveForm () {
+  submitted.value = true
   const required = (cfg.value.form || [])
     .filter(f => visible(f) && !locked(f))
     .filter(f => f.required && !form.value[f.key])
   if (required.length) { toast(required[0].label + ' is required', 'bad'); return }
+
+  /* A badly-formed value is refused here rather than written and discovered
+     later. The field says what is wrong; the toast only says where to look,
+     because the sentence worth reading is next to the box. */
+  const bad = formatErrors()
+  if (bad.length) {
+    toast('Check ' + bad[0].f.label, 'bad')
+    document.getElementById('rf_' + bad[0].f.key)?.focus()
+    return
+  }
+
   saving.value = true
   const payload = convertTimes({ ...form.value }, fromLocalInput)
   try {
@@ -466,6 +507,7 @@ async function saveForm () {
       toast('Created')
     }
     sheetOpen.value = false
+  submitted.value = false; touched.value = {}
     refreshStats(); load()
   } catch (e) {
     toast('Could not save: ' + (e?.message || 'unknown error'), 'bad')
@@ -926,8 +968,9 @@ onMounted(load)
             </select>
             <textarea
               v-else-if="f.type === 'textarea'" :id="'rf_' + f.key" :name="f.name || f.key" class="i-ctl i-tech"
+              :class="{ 'is-invalid': fieldError(f) }"
               rows="4" v-model="form[f.key]" :placeholder="f.placeholder || ''"
-              :disabled="!!locked(f)"
+              :disabled="!!locked(f)" @blur="touched[f.key] = true"
             />
             <!-- An upload: a button over a hidden input, and the filename
                  beside it read-only because it comes from the file. -->
@@ -947,9 +990,14 @@ onMounted(load)
             </template>
             <input
               v-else :id="'rf_' + f.key" :name="f.name || f.key" class="i-ctl"
+              :class="{ 'is-invalid': fieldError(f) }"
               :type="f.type || 'text'" v-model="form[f.key]" :placeholder="f.placeholder || ''"
-              :disabled="!!locked(f)"
+              :disabled="!!locked(f)" @blur="touched[f.key] = true"
             >
+            <!-- Bootstrap's own invalid-feedback, which vendor.css already
+                 ships and only shows beside an .is-invalid control. The
+                 sentence names what is wrong, not that something is. -->
+            <p v-if="fieldError(f)" class="invalid-feedback d-block">{{ fieldError(f) }}</p>
             <p v-if="locked(f)" class="i-hint">{{ locked(f) }}</p>
             <p v-else-if="f.hint" class="i-hint">{{ f.hint }}</p>
           </div>

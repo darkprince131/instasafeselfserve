@@ -363,20 +363,35 @@ onMounted(() => { probe(); load() })
               Opens in the browser
               <span class="badge rounded-pill bg-secondary ms-1">{{ webApps.length }}</span>
             </h5>
-            <div v-if="webApps.length" class="list-group list-group-flush">
-              <RouterLink
-                v-for="a in webApps.slice(0, 8)" :key="a.id"
-                class="list-group-item list-group-item-action d-flex align-items-center justify-content-between"
-                to="/portal/applications"
-              >
-                <span>
-                  <span class="badge rounded-pill bg-secondary me-2">
-                    {{ String(a.type || '?').toUpperCase().slice(0, 3) }}
-                  </span>
-                  {{ a.name }}
+            <div v-if="webApps.length" class="row g-3">
+              <div v-for="a in webApps.slice(0, 8)" :key="a.id" class="col-12 col-xl-6">
+            <a
+              href="javascript:void(0)"
+              class="d-flex align-items-center w-100 p-3 rounded bg-body-secondary text-decoration-none h-100"
+              @click="$router.push('/portal/applications')"
+            >
+              <div class="d-flex align-items-center gap-3 overflow-hidden">
+                <!-- Velto serves a logo uploaded per application. A seeded
+                     one has none, so the fallback is the same circle with the
+                     application's initial in it rather than a broken image. -->
+                <img
+                  v-if="a.logo" :src="a.logo" :alt="a.name"
+                  class="shrink-0 rounded-circle" width="42" height="42"
+                >
+                <span v-else class="app-logo-fallback shrink-0 rounded-circle">
+                  {{ (a.name || '?').slice(0, 1).toUpperCase() }}
                 </span>
-                <i class="fas fa-chevron-right text-secondary" aria-hidden="true" />
-              </RouterLink>
+                <div class="overflow-hidden">
+                  <div class="fw-semibold text-truncate">{{ a.name }}</div>
+                  <div class="small text-muted text-truncate">
+                    <i class="fa fa-layer-group me-1" aria-hidden="true" />
+                    {{ String(a.type || '').toUpperCase() }}
+                  </div>
+                </div>
+              </div>
+              <div class="ms-auto text-muted"><i class="fa fa-arrow-right" aria-hidden="true" /></div>
+            </a>
+          </div>
             </div>
             <p v-else class="text-secondary mb-0">Nothing has been assigned to you yet.</p>
             <RouterLink v-if="webApps.length > 8" class="d-inline-block mt-2" to="/portal/applications">
@@ -393,16 +408,35 @@ onMounted(() => { probe(); load() })
               Needs the agent
               <span class="badge rounded-pill bg-secondary ms-1">{{ netApps.length }}</span>
             </h5>
-            <div v-if="netApps.length" class="list-group list-group-flush">
-              <span
-                v-for="a in netApps.slice(0, 8)" :key="a.id"
-                class="list-group-item d-flex align-items-center"
-              >
-                <span class="badge rounded-pill bg-secondary me-2">
-                  {{ String(a.type || '?').toUpperCase().slice(0, 3) }}
+            <div v-if="netApps.length" class="row g-3">
+              <div v-for="a in netApps.slice(0, 8)" :key="a.id" class="col-12 col-xl-6">
+            <a
+              href="javascript:void(0)"
+              class="d-flex align-items-center w-100 p-3 rounded bg-body-secondary text-decoration-none h-100"
+              @click=""
+            >
+              <div class="d-flex align-items-center gap-3 overflow-hidden">
+                <!-- Velto serves a logo uploaded per application. A seeded
+                     one has none, so the fallback is the same circle with the
+                     application's initial in it rather than a broken image. -->
+                <img
+                  v-if="a.logo" :src="a.logo" :alt="a.name"
+                  class="shrink-0 rounded-circle" width="42" height="42"
+                >
+                <span v-else class="app-logo-fallback shrink-0 rounded-circle">
+                  {{ (a.name || '?').slice(0, 1).toUpperCase() }}
                 </span>
-                {{ a.name }}
-              </span>
+                <div class="overflow-hidden">
+                  <div class="fw-semibold text-truncate">{{ a.name }}</div>
+                  <div class="small text-muted text-truncate">
+                    <i class="fa fa-layer-group me-1" aria-hidden="true" />
+                    {{ String(a.type || '').toUpperCase() }}
+                  </div>
+                </div>
+              </div>
+              <div class="ms-auto text-muted"><i class="fa fa-arrow-right" aria-hidden="true" /></div>
+            </a>
+          </div>
             </div>
             <p v-else class="text-secondary mb-0">No network application is assigned to you.</p>
             <p v-if="netApps.length && agent !== 'running'" class="text-secondary small mt-2 mb-0">
@@ -461,3 +495,19 @@ onMounted(() => { probe(); load() })
     </div>
   </div>
 </template>
+
+<style scoped>
+/* The circle velto's uploaded logo would fill. Production's own muted
+   surface and label colour, so an application without a logo does not
+   introduce one. */
+.app-logo-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background-color: rgba(var(--bs-body-color-rgb), .08);
+  color: #656195;
+  font-weight: 700;
+}
+</style>
