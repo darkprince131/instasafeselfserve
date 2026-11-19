@@ -305,7 +305,10 @@ export const api = {
     if (isEmptied('sessions')) out.sessionsLive = 0
     if (isEmptied('devices')) out.devices = await api.devices.count()
     if (isEmptied('applications')) out.applications = await api.applications.count()
-    if (isEmptied('accessRules')) out.accessRules = await api.accessRules.count()
+    /* The rollup calls this `rules`, not `accessRules`. Setting the wrong
+       key left the seeded count in place, which ticked "write the access
+       rule" in the Quick Start Guide on a tenant that had none. */
+    if (isEmptied('accessRules')) out.rules = await api.accessRules.count()
     return out
   },
 

@@ -20,49 +20,84 @@ import { tenant, daysLeft, markDone } from '../../lib/trial.js'
 const props = defineProps({ stats: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['close', 'tour'])
 
+/**
+ * The jobs worth doing first, in the order an administrator actually does
+ * them on an empty tenant.
+ *
+ * `done` is a predicate over real state wherever one exists, not a flag set
+ * when the link was clicked. The guide used to tick a step the moment you
+ * opened the screen, which made it a list of places you had been rather than
+ * things you had done — and it claimed in its own first line that nothing
+ * here is mimed.
+ *
+ * Only `prove` keeps a clicked flag, because asking the explorer a question
+ * leaves nothing behind to detect.
+ */
 const STEPS = [
   {
     key: 'signin',
     title: 'You are signed in',
     body: 'Your console is empty, the way a real tenant is on day one. The steps below are the order an administrator actually works in, and nothing here is a mock-up — the policy engine evaluates and the authenticator verifies for real.',
-    to: null
+    to: null,
+    done: () => true
+  },
+  {
+    /* This step did not exist while the trial opened with 1,821 users
+       already in it. On an empty tenant everything downstream needs a person:
+       there is nobody to enrol an authenticator as, and nobody for a rule to
+       be about. */
+    key: 'user',
+    title: 'Add your first user',
+    body: 'Everything else is about somebody. You can add one here, or create one without leaving the form that needs it — the pickers on a rule will offer to make a user that does not exist yet.',
+    to: '/users',
+    cta: 'Users',
+    done: (st) => (st.users || 0) > 0
   },
   {
     key: 'mfa',
     title: 'Enrol an authenticator',
-    body: 'Real RFC 6238 TOTP. Scan the QR with Google Authenticator and the six-digit code is genuinely verified — a wrong one is refused.',
+    body: 'Real RFC 6238 TOTP. Scan the QR with Google Authenticator and the six-digit code is genuinely verified — a wrong one is refused. You enrol as the employee, on their own portal, because an administrator cannot scan a QR with a phone they are not holding.',
     to: '/portal/mfa',
-    cta: 'Enrol'
+    cta: 'Enrol',
+    done: (st) => (st.users || 0) > 0 && (st.usersWithoutMfa || 0) < (st.users || 0)
   },
   {
     key: 'gateway',
     title: 'Put an application behind a gateway',
     body: 'A gateway is the data plane. Until an application sits behind one, no rule can reach it.',
     to: '/gateways',
-    cta: 'Gateways'
+    cta: 'Gateways',
+    done: (st) => (st.gateways || 0) > 0 && (st.applications || 0) > 0
   },
   {
     key: 'rule',
     title: 'Write the access rule that joins them',
     body: 'The policy engine really evaluates: it reports which rule decided, which were shadowed, and whether posture overrode an allow.',
     to: '/access-rules',
-    cta: 'Access Rules'
+    cta: 'Access Rules',
+    done: (st) => (st.rules || 0) > 0
   },
   {
     key: 'prove',
     title: 'Prove it',
     body: 'Ask the explorer whether a user can reach an application, and read back the reason. Then check the event log — every action you took is in it.',
     to: '/access-explorer',
-    cta: 'Access Explorer'
+    cta: 'Access Explorer',
+    /* Nothing is left behind by asking a question, so this one is the
+       exception that still trusts the click. */
+    done: (st, clicked) => !!clicked.prove
   }
 ]
 
-const done = computed(() => tenant.value.done || {})
-const complete = computed(() => STEPS.every(s => done.value[s.key]))
-const remaining = computed(() => STEPS.filter(s => !done.value[s.key]).length)
+const clicked = computed(() => tenant.value.done || {})
+const isDone = (step) => step.done(props.stats || {}, clicked.value)
+const complete = computed(() => STEPS.every(isDone))
+const remaining = computed(() => STEPS.filter(s => !isDone(s)).length)
 
 function go (step) {
-  if (step.key !== 'signin') markDone(step.key)
+  /* Only `prove` is recorded on the click; every other step is read back
+     from what is actually in the tenant. */
+  if (step.key === 'prove') markDone('prove')
   emit('close')
 }
 </script>
@@ -102,7 +137,7 @@ function go (step) {
                   <tr v-for="s in STEPS" :key="s.key">
                     <td>
                       <i
-                        class="fas" :class="done[s.key] || s.key === 'signin'
+                        class="fas" :class="isDone(s)
                           ? 'fa-check-circle text-success' : 'fa-circle text-body-tertiary'"
                       />
                     </td>
