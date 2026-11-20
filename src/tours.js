@@ -37,6 +37,8 @@ export const TOURS = [
   // ===================================================================
   {
     id: 'onboard',
+    trigger: 'Just looking — show me the whole job',
+    group: 'answers',
     title: 'Give someone access to an application',
     minutes: 6,
     icon: 'fa-route',
@@ -125,6 +127,8 @@ export const TOURS = [
   // ===================================================================
   {
     id: 'mfa',
+    trigger: 'The auditor wants MFA everywhere',
+    group: 'answers',
     title: 'Require multi-factor, and watch a user enrol',
     minutes: 4,
     icon: 'fa-mobile-screen',
@@ -195,6 +199,8 @@ export const TOURS = [
   // ===================================================================
   {
     id: 'sso',
+    trigger: 'We bought Entra or Okta — connect our apps',
+    group: 'answers',
     title: 'Federate sign-in to an identity provider',
     minutes: 5,
     icon: 'fa-right-to-bracket',
@@ -249,6 +255,8 @@ export const TOURS = [
   // ===================================================================
   {
     id: 'devices',
+    trigger: 'Half the laptops are unmanaged',
+    group: 'answers',
     title: 'Enrol a device and enforce posture',
     minutes: 4,
     icon: 'fa-laptop-medical',
@@ -306,7 +314,78 @@ export const TOURS = [
 
   // ===================================================================
   {
+    id: 'remote-access',
+    trigger: "We're ripping out the VPN",
+    group: 'answers',
+    title: 'Reach an application without a tunnel',
+    minutes: 5,
+    icon: 'fa-plug',
+    blurb: 'The same application two ways — in the browser with nothing installed, and over the agent — and what each one gives up.',
+    intro:
+      'A VPN puts a machine on the network and then trusts it. This does not: a session is opened to one application, ' +
+      'and everything else stays invisible. The browser route needs nothing installed, which is why it is how contractors ' +
+      'are usually given access.',
+    /* `events`, not `eventLog`: the accessor on the api object is
+       `api.events` even though the collection behind it is the event log,
+       and snapshot/fresh index by the accessor name. */
+    baseline: (api) => snapshot(api, ['applications', 'events']),
+    steps: [
+      {
+        to: '/applications', target: '.table-container',
+        title: 'Open one in the browser',
+        body:
+          'Click a row, then Connect. An RDP, SSH or VNC application opens an in-browser session surface — no client, no tunnel, ' +
+          'nothing on the machine you are sitting at. Close it when you have looked around.',
+        done: 'Session opened and closed',
+        async check (api, base, ctx) {
+          /* Ending a session writes one of these, so this is the work
+             happening rather than the screen being visited. */
+          const made = await fresh(api, base, 'events')
+          const hit = made.find(e => e.type === 'session.ended')
+          if (!hit) return false
+          ctx.session = hit.message
+          return true
+        },
+        recap: (ctx) => ctx.session
+      },
+      {
+        to: '/applications', target: null,
+        title: 'Notice what it took away',
+        body:
+          'The session surface carries a watermark, blocks copy and paste, and can be recorded — none of which a VPN can do, ' +
+          'because a VPN hands over the network and stops watching. SCOPE.md rates this one S: the surface is real and ' +
+          'convincing, the far end is simulated, and it says so.',
+        done: 'Read',
+        optional: true,
+        check: async () => true
+      },
+      {
+        to: '/portal', target: null,
+        title: 'Now the other way — the agent',
+        body:
+          'Network applications need the agent, and the employee portal probes for it on the machine you are actually using. ' +
+          'It will say not connected, because nothing is listening on the loopback port — that probe is real, and it is the ' +
+          'state every machine without the agent is in.',
+        done: 'Read',
+        optional: true,
+        check: async () => true
+      },
+      {
+        to: '/access-explorer', target: null,
+        title: 'Either way, the policy is the same',
+        body:
+          'Clientless or over the agent, reaching an application still has to survive the rule. Ask the explorer about the ' +
+          'application you just opened — the answer does not change with the route.',
+        done: 'Read',
+        optional: true,
+        check: async () => true
+      }
+    ]
+  },
+  // ===================================================================
+  {
     id: 'groups',
+    group: 'running',
     title: 'Manage access by group, not by person',
     minutes: 4,
     icon: 'fa-users',
@@ -359,6 +438,7 @@ export const TOURS = [
   // ===================================================================
   {
     id: 'filters',
+    group: 'running',
     title: 'Filter what people can reach',
     minutes: 3,
     icon: 'fa-filter',
@@ -406,6 +486,7 @@ export const TOURS = [
   // ===================================================================
   {
     id: 'siem',
+    group: 'running',
     title: 'Wire the logs into a SIEM',
     minutes: 3,
     icon: 'fa-shield-halved',

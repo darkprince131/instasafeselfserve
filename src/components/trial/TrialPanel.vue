@@ -74,6 +74,11 @@ function flip (key) {
   consoleDemo[key] = consoleDemo[key] === 'empty' ? 'seeded' : 'empty'
   touched()
 }
+/* A flow either answers the sentence somebody arrived with, or it is
+   second-order - worth knowing once the tenant exists, and noise before. */
+const answeringFlows = computed(() => TOURS.filter(t => t.group === 'answers'))
+const runningFlows = computed(() => TOURS.filter(t => t.group !== 'answers'))
+
 const preset = computed(() => currentPreset())
 
 /**
@@ -209,13 +214,36 @@ function endTrial () {
 
           <!-- ---------------- Flows ---------------- -->
           <template v-else-if="tab === 'flows'">
+            <!-- Listed by the sentence a visitor arrives with, not by the
+                 console noun the flow happens to touch. Somebody sent here
+                 because an auditor asked for MFA is scanning for the word
+                 MFA, not for "require multi-factor, and watch a user
+                 enrol". -->
             <p class="small text-body-secondary">
               Each one walks a real job end to end, pausing on the screen that
-              does it. Nothing is mimed — the steps are the console.
+              does it, with the ring showing what to press. Nothing is mimed —
+              the steps are the console, and a step only completes when the
+              work really happened.
             </p>
+
+            <h6 class="small text-uppercase text-body-secondary mt-3">What brought you here</h6>
+            <div class="list-group mb-3">
+              <button
+                v-for="t in answeringFlows" :key="t.id"
+                class="list-group-item list-group-item-action text-start"
+                @click="startTour(t.id)"
+              >
+                <strong class="d-block small">“{{ t.trigger }}”</strong>
+                <span class="small text-body-secondary">
+                  {{ t.title }} · {{ t.steps.length }} steps
+                </span>
+              </button>
+            </div>
+
+            <h6 class="small text-uppercase text-body-secondary">Once you are running</h6>
             <div class="list-group">
               <button
-                v-for="t in TOURS" :key="t.id"
+                v-for="t in runningFlows" :key="t.id"
                 class="list-group-item list-group-item-action text-start"
                 @click="startTour(t.id)"
               >
