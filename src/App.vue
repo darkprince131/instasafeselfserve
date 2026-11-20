@@ -7,6 +7,7 @@ import TrialPanel from './components/trial/TrialPanel.vue'
 import TrialExpiry from './components/trial/TrialExpiry.vue'
 import Toasts from './components/ui/Toasts.vue'
 import Tour from './components/shell/Tour.vue'
+import Buddy from './components/guide/Buddy.vue'
 import { setPageCss } from './lib/page-css.js'
 import api from './api'
 
@@ -105,6 +106,13 @@ onMounted(refreshStats)
 
     <TrialPanel v-model:open="trialOpen" @read="refreshStats" @tour="id => tourRef?.start(id)" />
     <Tour ref="tourRef" />
+
+    <!-- Pip, on the administrator's side. The portal mounted him and the
+         console did not, because the shell rewrite that put production's
+         header and sidebar in place dropped this line with the rest of the
+         old template - so the guide existed, answered to the flow runner,
+         and was invisible on sixty-six of the seventy-three screens. -->
+    <Buddy scope="console" @tour="id => tourRef?.start(id)" />
   </template>
 
   <Toasts ref="toastRef" />

@@ -91,7 +91,13 @@ function checkCode () {
   nextTick(() => document.getElementById('company')?.focus())
 }
 
-/** The tenant name is what the header prints where veno prints "Veno". */
+/**
+ * The tenant name is what the header prints where veno prints "Veno".
+ *
+ * Provisioning no longer lands anybody anywhere: it opens the seat question,
+ * because the two halves of this product are two different jobs and a
+ * visitor arrives wanting one of them.
+ */
 async function create () {
   error.value = ''
   const name = company.value.trim()
@@ -99,8 +105,26 @@ async function create () {
   busy.value = true
   try {
     startSession({ name, company: name, adminEmail: email.value.trim() })
-    router.push(route.query.next || '/dashboard')
+    step.value = 'seat'
   } finally { busy.value = false }
+}
+
+/**
+ * Which side to start on.
+ *
+ * It is one product and one account - the same address and password reach
+ * both, and what you see depends on what the account may do. But an
+ * administrator setting up a tenant and an employee looking at their own
+ * access are different jobs, and landing everybody on the console sends
+ * half of them to the wrong one.
+ *
+ * The choice is not permanent. The console's Trial panel crosses to the
+ * employee view and the portal's avatar menu crosses back, so this is which
+ * door to come in by rather than which product you bought.
+ */
+function enter (seat) {
+  if (route.query.next) { router.push(route.query.next); return }
+  router.push(seat === 'portal' ? '/portal' : '/dashboard')
 }
 
 function onCode (e) {
@@ -183,7 +207,7 @@ function onCode (e) {
         </template>
 
         <!-- 3 · the tenant -->
-        <template v-else>
+        <template v-else-if="step === 'tenant'">
           <div class="header-section">
             <button type="button" class="back-button" aria-label="Back" @click="step = 'code'">
               <i class="fas fa-arrow-left" />
@@ -215,6 +239,43 @@ function onCode (e) {
             does on day one, and the Quick Start Guide walks you through
             filling it. If you would rather see it at production scale, the
             Trial panel loads a running tenant in one click.
+          </p>
+        </template>
+
+        <!-- 4 · which seat -->
+        <template v-if="step === 'seat'">
+          <div class="header-section">
+            <button type="button" class="back-button" aria-label="Back" @click="step = 'tenant'">
+              <i class="fas fa-arrow-left" />
+            </button>
+            <h4>{{ company }} is ready</h4>
+            <span class="w-24" />
+          </div>
+          <p class="selection-text text-center">
+            One product, one account — the same address and password reach
+            both. Which job are you here to do?
+          </p>
+
+          <div class="list-group mb-3">
+            <button type="button" class="list-group-item list-group-item-action text-start" @click="enter('console')">
+              <strong class="d-block">Run the tenant</strong>
+              <span class="small text-secondary">
+                The administrator console. Add people, publish applications,
+                write the policy that decides who reaches what.
+              </span>
+            </button>
+            <button type="button" class="list-group-item list-group-item-action text-start" @click="enter('portal')">
+              <strong class="d-block">See what an employee sees</strong>
+              <span class="small text-secondary">
+                Their own access, their devices, and the screen where they
+                enrol an authenticator. This is where MFA is actually set up.
+              </span>
+            </button>
+          </div>
+
+          <p class="selection-text text-center mt-3 mb-0">
+            You can cross between them at any time — the Trial panel on one
+            side, the avatar menu on the other.
           </p>
         </template>
       </section>

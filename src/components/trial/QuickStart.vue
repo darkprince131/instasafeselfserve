@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { tenant, daysLeft, markDone } from '../../lib/trial.js'
+import { TOURS } from '../../tours.js'
 
 /**
  * The Quick Start Guide — production's own modal, extended.
@@ -89,6 +90,13 @@ const STEPS = [
   }
 ]
 
+/* The flows a visitor might have arrived for, listed by the sentence each
+   one answers. They were reachable only from the Trial panel's third tab,
+   which is two clicks and a guess away from anybody who does not already
+   know they exist - so they sit here too, on the one panel first run
+   actually opens. */
+const solutionFlows = computed(() => TOURS.filter(t => t.group === 'answers'))
+
 const clicked = computed(() => tenant.value.done || {})
 const isDone = (step) => step.done(props.stats || {}, clicked.value)
 const complete = computed(() => STEPS.every(isDone))
@@ -155,12 +163,22 @@ function go (step) {
             </div>
 
             <p class="mt-3 mb-0">
-              Five guided flows walk these end to end, pausing on the screen
-              that does the work.
-              <a role="button" class="text-decoration-underline" @click="emit('tour', 'onboard')">
-                Start with giving someone access to an application
-              </a>.
+              The steps above are the order of the work. If you came here for
+              one thing in particular, start with that instead — each walks a
+              real job end to end, ringing what to press and waiting until it
+              is really done.
             </p>
+
+            <div class="list-group mb-2">
+              <button
+                v-for="t in solutionFlows" :key="t.id"
+                type="button" class="list-group-item list-group-item-action text-start"
+                @click="emit('tour', t.id)"
+              >
+                <strong class="d-block small">“{{ t.trigger }}”</strong>
+                <span class="small text-body-secondary">{{ t.title }} · {{ t.steps.length }} steps</span>
+              </button>
+            </div>
           </template>
         </div>
       </div>

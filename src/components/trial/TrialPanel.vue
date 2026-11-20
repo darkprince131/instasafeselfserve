@@ -164,7 +164,7 @@ function endTrial () {
             <div class="list-group mb-3">
               <RouterLink to="/dashboard" class="list-group-item list-group-item-action" @click="emit('update:open', false)">
                 <strong class="d-block">Quick Start Guide</strong>
-                <span class="small text-body-secondary">The five things worth doing first, on the dashboard.</span>
+                <span class="small text-body-secondary">The jobs worth doing first, on the dashboard, ticked as you do them.</span>
               </RouterLink>
               <RouterLink to="/reports/event-logs" class="list-group-item list-group-item-action" @click="emit('update:open', false)">
                 <strong class="d-block">Event Log</strong>
